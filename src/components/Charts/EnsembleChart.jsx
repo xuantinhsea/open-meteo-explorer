@@ -6,9 +6,9 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-export default function EnsembleChart({ labels, memberDatasets, meanDataset, variableLabel, unit = '°C', chartRef }) {
+export default function EnsembleChart({ labels, memberDatasets, meanDataset, unit = '°C', chartRef }) {
   const datasets = [
-    ...memberDatasets.map((ds, i) => ({
+    ...memberDatasets.map((ds) => ({
       label: ds.label,
       data: ds.values,
       borderColor: '#93c5fd',

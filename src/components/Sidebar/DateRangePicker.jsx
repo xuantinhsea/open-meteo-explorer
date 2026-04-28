@@ -13,16 +13,9 @@ function Warning({ children }) {
 export default function DateRangePicker({ mode, startDate, endDate, onStartChange, onEndChange, modelDateRange }) {
   const { min: modeMin, max: modeMax } = getDateConstraints(mode);
 
-  // Effective limits: the tighter of mode-level and model-level constraints
-  const effectiveMin = useMemo(() => {
-    if (!modelDateRange?.min) return modeMin;
-    return modelDateRange.min > modeMin ? modelDateRange.min : modeMin;
-  }, [modeMin, modelDateRange]);
-
-  const effectiveMax = useMemo(() => {
-    if (!modelDateRange?.max) return modeMax;
-    return modelDateRange.max < modeMax ? modelDateRange.max : modeMax;
-  }, [modeMax, modelDateRange]);
+  // Model-specific range takes precedence; fall back to mode-level range only when no model is selected.
+  const effectiveMin = useMemo(() => modelDateRange?.min ?? modeMin, [modeMin, modelDateRange]);
+  const effectiveMax = useMemo(() => modelDateRange?.max ?? modeMax, [modeMax, modelDateRange]);
 
   const startWarning = useMemo(() => {
     if (!startDate) return null;

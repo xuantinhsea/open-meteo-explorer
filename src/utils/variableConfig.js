@@ -1,8 +1,11 @@
 export const MODES = [
-  { id: 'forecast', label: 'Forecast' },
+  { id: 'forecast',   label: 'Forecast' },
   { id: 'historical', label: 'Historical' },
-  { id: 'ensemble', label: 'Ensemble' },
-  { id: 'climate', label: 'Climate Change' },
+  { id: 'ensemble',   label: 'Ensemble' },
+  { id: 'climate',    label: 'Climate Change' },
+  { id: 'marine',     label: 'Marine' },
+  { id: 'flood',      label: 'Flood' },
+  { id: 'projection', label: 'WB Projection' },
 ];
 
 export const VARIABLES = {
@@ -95,6 +98,51 @@ export const VARIABLES = {
       { id: 'snowfall_sum', label: 'Snowfall Sum', group: 'Precipitation' },
       { id: 'wind_speed_10m_max', label: 'Wind Speed Max', group: 'Wind' },
       { id: 'wind_gusts_10m_max', label: 'Wind Gusts Max', group: 'Wind' },
+    ],
+  },
+  marine: {
+    hourly: [
+      { id: 'wave_height',               label: 'Wave Height',               group: 'Waves' },
+      { id: 'wave_direction',            label: 'Wave Direction',            group: 'Waves' },
+      { id: 'wave_period',               label: 'Wave Period',               group: 'Waves' },
+      { id: 'wave_peak_period',          label: 'Wave Peak Period',          group: 'Waves' },
+      { id: 'wind_wave_height',          label: 'Wind Wave Height',          group: 'Wind Waves' },
+      { id: 'wind_wave_direction',       label: 'Wind Wave Direction',       group: 'Wind Waves' },
+      { id: 'wind_wave_period',          label: 'Wind Wave Period',          group: 'Wind Waves' },
+      { id: 'wind_wave_peak_period',     label: 'Wind Wave Peak Period',     group: 'Wind Waves' },
+      { id: 'swell_wave_height',         label: 'Swell Height',              group: 'Swell' },
+      { id: 'swell_wave_direction',      label: 'Swell Direction',           group: 'Swell' },
+      { id: 'swell_wave_period',         label: 'Swell Period',              group: 'Swell' },
+      { id: 'swell_wave_peak_period',    label: 'Swell Peak Period',         group: 'Swell' },
+      { id: 'sea_surface_temperature',   label: 'Sea Surface Temperature',   group: 'Ocean (SMOC only)' },
+      { id: 'sea_level_height',          label: 'Sea Level Height',          group: 'Ocean (SMOC only)' },
+      { id: 'ocean_current_velocity',    label: 'Ocean Current Speed',       group: 'Ocean (SMOC only)' },
+      { id: 'ocean_current_direction',   label: 'Ocean Current Direction',   group: 'Ocean (SMOC only)' },
+      { id: 'invert_barometer_height',   label: 'Inverted Barometer Height', group: 'Ocean (SMOC only)' },
+    ],
+    daily: [
+      { id: 'wave_height_max',                label: 'Wave Height Max',           group: 'Waves' },
+      { id: 'wave_direction_dominant',        label: 'Wave Direction Dominant',   group: 'Waves' },
+      { id: 'wave_period_max',                label: 'Wave Period Max',           group: 'Waves' },
+      { id: 'wind_wave_height_max',           label: 'Wind Wave Height Max',      group: 'Wind Waves' },
+      { id: 'wind_wave_direction_dominant',   label: 'Wind Wave Dir Dominant',    group: 'Wind Waves' },
+      { id: 'wind_wave_period_max',           label: 'Wind Wave Period Max',      group: 'Wind Waves' },
+      { id: 'wind_wave_peak_period_max',      label: 'Wind Wave Peak Period Max', group: 'Wind Waves' },
+      { id: 'swell_wave_height_max',          label: 'Swell Height Max',          group: 'Swell' },
+      { id: 'swell_wave_direction_dominant',  label: 'Swell Direction Dominant',  group: 'Swell' },
+      { id: 'swell_wave_period_max',          label: 'Swell Period Max',          group: 'Swell' },
+      { id: 'swell_wave_peak_period_max',     label: 'Swell Peak Period Max',     group: 'Swell' },
+    ],
+  },
+  flood: {
+    daily: [
+      { id: 'river_discharge',        label: 'River Discharge',    group: 'Discharge' },
+      { id: 'river_discharge_mean',   label: 'Discharge Mean',     group: 'Ensemble' },
+      { id: 'river_discharge_median', label: 'Discharge Median',   group: 'Ensemble' },
+      { id: 'river_discharge_max',    label: 'Discharge Max',      group: 'Ensemble' },
+      { id: 'river_discharge_min',    label: 'Discharge Min',      group: 'Ensemble' },
+      { id: 'river_discharge_p25',    label: 'Discharge P25',      group: 'Ensemble' },
+      { id: 'river_discharge_p75',    label: 'Discharge P75',      group: 'Ensemble' },
     ],
   },
   climate: {
@@ -256,6 +304,78 @@ export const MODELS = {
       dataRange: { start: 'past92d', end: '+8d', resolution: 'Hourly', resolutionKm: '20 km', region: 'Global', members: 18, updateFreq: 'Every 6 h' },
     },
   ],
+  marine: [
+    {
+      id: 'best_match', label: 'Best Match (auto)',
+      dataRange: { start: 'past92d', end: '+16d', resolution: 'Hourly', resolutionKm: 'Varies', region: 'Global', updateFreq: 'Every 6 h' },
+    },
+    {
+      id: 'meteofrance_wave', label: 'MFWAM (Météo-France)',
+      dataRange: { start: '2021-10-01', end: '+10d', resolution: '3-Hourly', resolutionKm: '8 km', region: 'Global', updateFreq: 'Every 12 h' },
+    },
+    {
+      id: 'meteofrance_currents', label: 'SMOC Currents & SST (Météo-France) — Ocean vars only',
+      dataRange: { start: '2022-01-01', end: '+10d', resolution: 'Hourly', resolutionKm: '8 km', region: 'Global', updateFreq: 'Every 24 h' },
+    },
+    {
+      id: 'ecmwf_wam025', label: 'ECMWF WAM 0.25°',
+      dataRange: { start: '2024-03-01', end: '+15d', resolution: '3-Hourly', resolutionKm: '25 km', region: 'Global', updateFreq: 'Every 6 h' },
+    },
+    {
+      id: 'ncep_gfswave025', label: 'GFS Wave 0.25° (NCEP)',
+      dataRange: { start: '2024-06-01', end: '+16d', resolution: 'Hourly', resolutionKm: '25 km', region: 'Global', updateFreq: 'Every 6 h' },
+    },
+    {
+      id: 'ncep_gfswave016', label: 'GFS Wave 0.16° high-res (NCEP)',
+      dataRange: { start: '2024-10-01', end: '+16d', resolution: 'Hourly', resolutionKm: '16 km', region: '52.5°N–15°S', updateFreq: 'Every 6 h' },
+    },
+    {
+      id: 'ewam', label: 'EWAM (DWD Europe)',
+      dataRange: { start: '2022-08-01', end: '+8d', resolution: 'Hourly', resolutionKm: '5 km', region: 'Europe', updateFreq: 'Every 12 h' },
+    },
+    {
+      id: 'gwam', label: 'GWAM (DWD Global)',
+      dataRange: { start: '2022-08-01', end: '+4d', resolution: 'Hourly', resolutionKm: '25 km', region: 'Global', updateFreq: 'Every 12 h' },
+    },
+    {
+      id: 'era5_ocean', label: 'ERA5-Ocean (historical)',
+      dataRange: { start: '1940-01-01', end: 'present', delayDays: 5, resolution: 'Hourly', resolutionKm: '50 km', region: 'Global', updateFreq: 'Daily' },
+    },
+  ],
+  flood: [
+    {
+      id: 'seamless_v4', label: 'GloFAS v4 Seamless (default)',
+      dataRange: { start: '1984-01-01', end: '+210d', resolution: 'Daily', resolutionKm: '5 km', region: 'Global', updateFreq: 'Daily/Monthly' },
+    },
+    {
+      id: 'forecast_v4', label: 'GloFAS v4 Forecast',
+      dataRange: { start: '1984-01-01', end: '+30d', resolution: 'Daily', resolutionKm: '5 km', region: 'Global', updateFreq: 'Daily' },
+    },
+    {
+      id: 'consolidated_v4', label: 'GloFAS v4 Reanalysis',
+      dataRange: { start: '1984-01-01', end: '2022-07-31', resolution: 'Daily', resolutionKm: '5 km', region: 'Global', updateFreq: 'Archived' },
+    },
+    {
+      id: 'seasonal_v4', label: 'GloFAS v4 Seasonal',
+      dataRange: { start: '1984-01-01', end: '+210d', resolution: 'Daily', resolutionKm: '5 km', region: 'Global', updateFreq: 'Monthly' },
+    },
+    {
+      id: 'seamless_v3', label: 'GloFAS v3 Seamless',
+      dataRange: { start: '1984-01-01', end: '+30d', resolution: 'Daily', resolutionKm: '11 km', region: 'Global', updateFreq: 'Daily/Monthly' },
+    },
+    {
+      id: 'forecast_v3', label: 'GloFAS v3 Forecast',
+      dataRange: { start: '1984-01-01', end: '+30d', resolution: 'Daily', resolutionKm: '11 km', region: 'Global', updateFreq: 'Daily' },
+    },
+    {
+      id: 'consolidated_v3', label: 'GloFAS v3 Reanalysis',
+      dataRange: { start: '1984-01-01', end: '2022-07-31', resolution: 'Daily', resolutionKm: '11 km', region: 'Global', updateFreq: 'Archived' },
+    },
+    {
+      id: 'seasonal_v3', label: 'GloFAS v3 Seasonal',
+      dataRange: { start: '1984-01-01', end: '+210d', resolution: 'Daily', resolutionKm: '11 km', region: 'Global', updateFreq: 'Monthly' },
+    },
+  ],
   climate: [
     {
       id: 'CMCC_CM2_VHR4', label: 'CMCC-CM2-VHR4 (Italy)',
@@ -330,10 +450,12 @@ export function findModel(mode, modelId) {
 }
 
 export const DEFAULT_VARIABLES = {
-  forecast: { hourly: ['temperature_2m', 'precipitation'], daily: [] },
+  forecast:   { hourly: ['temperature_2m', 'precipitation'], daily: [] },
   historical: { hourly: ['temperature_2m', 'precipitation'], daily: [] },
-  ensemble: { hourly: ['temperature_2m', 'precipitation'], daily: [] },
-  climate: { daily: ['temperature_2m_max', 'temperature_2m_min', 'precipitation_sum'] },
+  ensemble:   { hourly: ['temperature_2m', 'precipitation'], daily: [] },
+  climate:    { daily: ['temperature_2m_max', 'temperature_2m_min', 'precipitation_sum'] },
+  marine:     { hourly: ['wave_height', 'wave_direction', 'wave_period', 'swell_wave_height'], daily: [] },
+  flood:      { daily: ['river_discharge'] },
 };
 
 export const TEMP_VARIABLE_IDS = new Set([
@@ -345,4 +467,23 @@ export const TEMP_VARIABLE_IDS = new Set([
 export const PRECIP_VARIABLE_IDS = new Set([
   'precipitation', 'rain', 'snowfall', 'precipitation_sum',
   'rain_sum', 'snowfall_sum', 'precipitation_probability', 'precipitation_probability_max',
+]);
+
+// Marine variable groupings for ChartPanel
+export const MARINE_HEIGHT_IDS = new Set([
+  'wave_height', 'wind_wave_height', 'swell_wave_height',
+  'wave_height_max', 'wind_wave_height_max', 'swell_wave_height_max',
+]);
+export const MARINE_PERIOD_IDS = new Set([
+  'wave_period', 'wave_peak_period', 'wind_wave_period', 'wind_wave_peak_period',
+  'swell_wave_period', 'swell_wave_peak_period',
+  'wave_period_max', 'wind_wave_period_max', 'wind_wave_peak_period_max',
+  'swell_wave_period_max', 'swell_wave_peak_period_max',
+]);
+export const MARINE_DIRECTION_IDS = new Set([
+  'wave_direction', 'wind_wave_direction', 'swell_wave_direction', 'ocean_current_direction',
+  'wave_direction_dominant', 'wind_wave_direction_dominant', 'swell_wave_direction_dominant',
+]);
+export const MARINE_OCEAN_IDS = new Set([
+  'sea_surface_temperature', 'sea_level_height', 'ocean_current_velocity', 'invert_barometer_height',
 ]);

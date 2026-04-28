@@ -3,12 +3,16 @@ import { fetchForecast } from '../api/forecast';
 import { fetchHistorical } from '../api/historical';
 import { fetchEnsemble } from '../api/ensemble';
 import { fetchClimate } from '../api/climate';
+import { fetchMarine } from '../api/marine';
+import { fetchFlood } from '../api/flood';
 
 const FETCHERS = {
   forecast: fetchForecast,
   historical: fetchHistorical,
   ensemble: fetchEnsemble,
   climate: fetchClimate,
+  marine: fetchMarine,
+  flood: fetchFlood,
 };
 
 // Session-level in-memory cache: avoids hitting the API again for the same request

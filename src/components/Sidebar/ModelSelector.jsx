@@ -17,7 +17,7 @@ function formatDate(iso) {
 }
 
 export default function ModelSelector({ mode, model, onChange }) {
-  const models = MODELS[mode] || [];
+  const models = useMemo(() => MODELS[mode] || [], [mode]);
   const selected = useMemo(() => models.find((m) => m.id === model), [models, model]);
   const dr = selected?.dataRange;
   const resolved = useMemo(() => dr ? resolveModelDateRange(dr) : null, [dr]);

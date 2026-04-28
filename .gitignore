@@ -22,3 +22,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Internal / AI assistant files
+CLAUDE.md
+github.md
+
+# Generated reference files (not part of the app)
+subnational_list.csv
+
+# Packed tarballs from manual leaflet fix
+*.tgz

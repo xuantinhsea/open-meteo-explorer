@@ -43,6 +43,12 @@ export function getDateConstraints(mode) {
       return { min: daysAgo(92), max: daysAhead(35), defaultStart: now, defaultEnd: daysAhead(10) };
     case 'climate':
       return { min: '1950-01-01', max: '2050-12-31', defaultStart: '1990-01-01', defaultEnd: '2030-12-31' };
+    case 'marine':
+      // ERA5-Ocean history goes back to 1940; forecast models up to 16 days ahead.
+      return { min: '1940-01-01', max: daysAhead(16), defaultStart: daysAgo(7), defaultEnd: daysAhead(7) };
+    case 'flood':
+      // GloFAS: history from 1984, seamless forecast up to 210 days ahead.
+      return { min: '1984-01-01', max: daysAhead(210), defaultStart: daysAgo(30), defaultEnd: daysAhead(30) };
     default:
       return { min: '1940-01-01', max: daysAhead(16), defaultStart: daysAgo(30), defaultEnd: now };
   }

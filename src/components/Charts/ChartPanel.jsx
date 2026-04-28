@@ -5,8 +5,13 @@ import ErrorBanner from '../UI/ErrorBanner';
 import TemperatureChart from './TemperatureChart';
 import PrecipitationChart from './PrecipitationChart';
 import EnsembleChart from './EnsembleChart';
+import ProjectionChart from './ProjectionChart';
 import ExportBar from './ExportBar';
-import { TEMP_VARIABLE_IDS, PRECIP_VARIABLE_IDS } from '../../utils/variableConfig';
+import {
+  TEMP_VARIABLE_IDS, PRECIP_VARIABLE_IDS,
+  MARINE_HEIGHT_IDS, MARINE_PERIOD_IDS, MARINE_DIRECTION_IDS, MARINE_OCEAN_IDS,
+} from '../../utils/variableConfig';
+import { exportCCKPCSV } from '../../utils/exportData';
 
 function downloadChart(chartRef, filename) {
   const url = chartRef.current?.toBase64Image?.();
@@ -39,17 +44,23 @@ function computeMean(memberDatasets) {
   return { values };
 }
 
-export default function ChartPanel({ data, loading, error, fromCache, mode, selectedVars, resolution }) {
-  const tempRef = useRef(null);
-  const precipRef = useRef(null);
-  const ensRef = useRef(null);
+export default function ChartPanel({ data, loading, error, fromCache, mode, selectedVars, cckpData, cckpLoading, cckpError }) {
+  const tempRef    = useRef(null);
+  const precipRef  = useRef(null);
+  const ensRef     = useRef(null);
+  const projRef    = useRef(null);
+  const marineRef1 = useRef(null);
+  const marineRef2 = useRef(null);
+  const marineRef3 = useRef(null);
+  const marineRef4 = useRef(null);
+  const floodRef   = useRef(null);
 
+  // All hooks must run unconditionally before any early return
   const { times, key } = useMemo(() => (data ? getTimeKey(data) : { times: [], key: null }), [data]);
 
-  // Find the label in the times array closest to the current moment.
-  // Returns null if mode has no "now" concept (historical, climate).
   const nowLabel = useMemo(() => {
     if (!times.length || (mode !== 'forecast' && mode !== 'ensemble')) return null;
+    // eslint-disable-next-line react-hooks/purity
     const nowMs = Date.now();
     let best = null;
     let bestDiff = Infinity;
@@ -62,19 +73,232 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, sele
 
   const sourceLabel = useMemo(() => {
     if (!data) return null;
-    const model = data.model || data.generationtime_ms ? null : null;
     if (mode === 'historical') return data.model || 'ERA5';
     if (mode === 'climate') return data.model || 'Climate Model';
     if (mode === 'ensemble') return data.model || 'Ensemble';
     return data.model || 'Open-Meteo Forecast';
   }, [data, mode]);
 
-  const tempVars = useMemo(() => selectedVars.filter((id) => TEMP_VARIABLE_IDS.has(id)), [selectedVars]);
-  const precipVars = useMemo(() => selectedVars.filter((id) => PRECIP_VARIABLE_IDS.has(id)), [selectedVars]);
-  const otherVars = useMemo(
-    () => selectedVars.filter((id) => !TEMP_VARIABLE_IDS.has(id) && !PRECIP_VARIABLE_IDS.has(id)),
-    [selectedVars]
+  const tempVars    = useMemo(() => selectedVars.filter((id) => TEMP_VARIABLE_IDS.has(id)), [selectedVars]);
+  const precipVars  = useMemo(() => selectedVars.filter((id) => PRECIP_VARIABLE_IDS.has(id)), [selectedVars]);
+  const otherVars   = useMemo(
+    () => selectedVars.filter((id) => !TEMP_VARIABLE_IDS.has(id) && !PRECIP_VARIABLE_IDS.has(id) && !MARINE_HEIGHT_IDS.has(id) && !MARINE_PERIOD_IDS.has(id) && !MARINE_DIRECTION_IDS.has(id) && !MARINE_OCEAN_IDS.has(id)),
+    [selectedVars],
   );
+  // Marine-specific groupings
+  const marineHeightVars    = useMemo(() => selectedVars.filter((id) => MARINE_HEIGHT_IDS.has(id)),    [selectedVars]);
+  const marinePeriodVars    = useMemo(() => selectedVars.filter((id) => MARINE_PERIOD_IDS.has(id)),    [selectedVars]);
+  const marineDirectionVars = useMemo(() => selectedVars.filter((id) => MARINE_DIRECTION_IDS.has(id)), [selectedVars]);
+  const marineOceanVars     = useMemo(() => selectedVars.filter((id) => MARINE_OCEAN_IDS.has(id)),     [selectedVars]);
+
+  // ── CCKP Projection panel — rendered after all hooks ──
+  if (mode === 'projection') {
+    if (cckpLoading) return <LoadingSpinner />;
+    if (cckpError) return <div className="p-4"><ErrorBanner message={cckpError} /></div>;
+    if (!cckpData) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3 p-8">
+          <svg className="w-16 h-16 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+          </svg>
+          <p className="text-sm font-medium">No projection data</p>
+          <p className="text-xs text-center max-w-xs">Select a country, variable, and scenarios in the sidebar then click <strong>Fetch Projection</strong>.</p>
+        </div>
+      );
+    }
+
+    const { historical, scenarioDatasets, unit, variableLabel, locationName, geocode } = cckpData;
+    const futureYears = scenarioDatasets[0]?.years?.length ?? 0;
+    const histYears = historical?.years?.length ?? 0;
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
+          {/* Header */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-sm font-semibold text-slate-700">Climate Projection</h2>
+              <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-teal-50 text-teal-700 border-teal-200">WB CCKP</span>
+              <span className="text-xs text-slate-500">{locationName || geocode}</span>
+            </div>
+            <span className="text-xs text-slate-400">{histYears + futureYears} years · Shading = p10–p90</span>
+          </div>
+
+          {/* Main chart — taller to accommodate legend */}
+          <ChartCard
+            title={`${variableLabel} — Historical & Projection (1950–2100)`}
+            onExport={() => {
+              const url = projRef.current?.toBase64Image?.();
+              if (!url) return;
+              const a = document.createElement('a');
+              a.href = url; a.download = `cckp_projection_${geocode}.png`; a.click();
+            }}
+            tall
+          >
+            <ProjectionChart
+              chartRef={projRef}
+              historical={historical}
+              scenarioDatasets={scenarioDatasets}
+              unit={unit}
+            />
+          </ChartCard>
+
+          <div className="text-[11px] text-slate-400 text-center">
+            Source: World Bank CCKP · CMIP6 · Ensemble median ± p10/p90
+          </div>
+        </div>
+
+        <div className="px-4 py-3 border-t border-slate-100 flex gap-2 justify-end">
+          <button
+            onClick={() => exportCCKPCSV(cckpData)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white text-xs text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            📄 Export CSV
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Marine panel ──────────────────────────────────────────────────────────
+  if (mode === 'marine') {
+    if (loading) return <LoadingSpinner />;
+    if (error)   return <div className="p-4"><ErrorBanner message={error} /></div>;
+    if (!data) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3 p-8">
+          <svg className="w-16 h-16 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 15a4 4 0 004 4h9a5 5 0 10-4.584-6.96A4.5 4.5 0 103 15z" />
+          </svg>
+          <p className="text-sm font-medium">No marine data yet</p>
+          <p className="text-xs text-center max-w-xs">Select a coastal or ocean location on the map, choose variables, and click <strong>Fetch Data</strong>.</p>
+        </div>
+      );
+    }
+
+    const { times: mTimes, key: mKey } = getTimeKey(data);
+    const mStore = mKey ? data[mKey] : {};
+    function marineDatasets(ids) {
+      return ids.map((id) => ({
+        id,
+        label: id.replace(/_/g, ' '),
+        values: mStore?.[id] || [],
+      })).filter((ds) => ds.values.length > 0);
+    }
+
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-sm font-semibold text-slate-700">Marine Data</h2>
+              <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-cyan-50 text-cyan-700 border-cyan-200">{data.model || 'Marine API'}</span>
+              {fromCache && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-slate-100 text-slate-500 border-slate-200">⚡ cached</span>
+              )}
+              {data.latitude && (
+                <span className="text-xs text-slate-400">{Number(data.latitude).toFixed(3)}, {Number(data.longitude).toFixed(3)}</span>
+              )}
+            </div>
+            <span className="text-xs text-slate-400">{mTimes.length} time points</span>
+          </div>
+
+          {marineHeightVars.length > 0 && (
+            <ChartCard title="Wave Heights (m)" onExport={() => downloadChart(marineRef1, 'wave_heights.png')}>
+              <TemperatureChart chartRef={marineRef1} labels={mTimes} datasets={marineDatasets(marineHeightVars)} unit="m" nowLabel={nowLabel} />
+            </ChartCard>
+          )}
+          {marinePeriodVars.length > 0 && (
+            <ChartCard title="Wave Periods (s)" onExport={() => downloadChart(marineRef2, 'wave_periods.png')}>
+              <TemperatureChart chartRef={marineRef2} labels={mTimes} datasets={marineDatasets(marinePeriodVars)} unit="s" nowLabel={nowLabel} />
+            </ChartCard>
+          )}
+          {marineDirectionVars.length > 0 && (
+            <ChartCard title="Wave Directions (°)" onExport={() => downloadChart(marineRef3, 'wave_directions.png')}>
+              <TemperatureChart chartRef={marineRef3} labels={mTimes} datasets={marineDatasets(marineDirectionVars)} unit="°" nowLabel={nowLabel} />
+            </ChartCard>
+          )}
+          {marineOceanVars.length > 0 && (
+            <ChartCard title="Ocean Conditions" onExport={() => downloadChart(marineRef4, 'ocean.png')}>
+              <TemperatureChart chartRef={marineRef4} labels={mTimes} datasets={marineDatasets(marineOceanVars)} unit="" nowLabel={nowLabel} />
+            </ChartCard>
+          )}
+          {selectedVars.length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-8">Select variables in the sidebar to display charts.</p>
+          )}
+        </div>
+        <ExportBar data={data} selectedVars={selectedVars} />
+      </div>
+    );
+  }
+
+  // ── Flood panel ──────────────────────────────────────────────────────────
+  if (mode === 'flood') {
+    if (loading) return <LoadingSpinner />;
+    if (error)   return <div className="p-4"><ErrorBanner message={error} /></div>;
+    if (!data) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3 p-8">
+          <svg className="w-16 h-16 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM4 13h16" />
+          </svg>
+          <p className="text-sm font-medium">No flood data yet</p>
+          <p className="text-xs text-center max-w-xs">Select a river location on the map, choose discharge variables, and click <strong>Fetch Data</strong>.</p>
+        </div>
+      );
+    }
+
+    const fTimes = data.daily?.time || [];
+    const fStore = data.daily || {};
+    function floodDatasets(ids) {
+      return ids.map((id) => ({
+        id,
+        label: id.replace(/_/g, ' '),
+        values: fStore[id] || [],
+      })).filter((ds) => ds.values.length > 0);
+    }
+
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-sm font-semibold text-slate-700">Flood Data</h2>
+              <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-orange-50 text-orange-700 border-orange-200">
+                {data.model || 'GloFAS v4'}
+              </span>
+              {fromCache && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-slate-100 text-slate-500 border-slate-200">⚡ cached</span>
+              )}
+              {data.latitude && (
+                <span className="text-xs text-slate-400">{Number(data.latitude).toFixed(3)}, {Number(data.longitude).toFixed(3)}</span>
+              )}
+            </div>
+            <span className="text-xs text-slate-400">{fTimes.length} days</span>
+          </div>
+
+          {selectedVars.length > 0 && floodDatasets(selectedVars).length > 0 && (
+            <ChartCard title="River Discharge (m³/s)" onExport={() => downloadChart(floodRef, 'river_discharge.png')}>
+              <TemperatureChart
+                chartRef={floodRef}
+                labels={fTimes}
+                datasets={floodDatasets(selectedVars)}
+                unit="m³/s"
+                nowLabel={null}
+              />
+            </ChartCard>
+          )}
+          {selectedVars.length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-8">Select discharge variables in the sidebar to display charts.</p>
+          )}
+
+          <div className="text-[11px] text-slate-400 text-center">
+            Source: Global Flood Awareness System (GloFAS) · 5 km resolution · Note: ensemble stats (mean, median, p25, p75, max, min) are only available for forecasts, not reanalysis.
+          </div>
+        </div>
+        <ExportBar data={data} selectedVars={selectedVars} />
+      </div>
+    );
+  }
 
   if (loading) return <LoadingSpinner />;
   if (error) return (
@@ -196,7 +420,7 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, sele
   );
 }
 
-function ChartCard({ title, children, onExport }) {
+function ChartCard({ title, children, onExport, tall }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
       <div className="flex items-center justify-between">
@@ -209,7 +433,7 @@ function ChartCard({ title, children, onExport }) {
           ↓ PNG
         </button>
       </div>
-      <div className="h-52">{children}</div>
+      <div className={tall ? 'h-80' : 'h-52'}>{children}</div>
     </div>
   );
 }

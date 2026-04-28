@@ -1,5 +1,54 @@
 import * as XLSX from 'xlsx';
 
+// ─── CCKP Projection CSV export ───────────────────────────────────────────────
+export function exportCCKPCSV(cckpData) {
+  if (!cckpData) return;
+  const { historical, scenarioDatasets, geocode, locationName, variable, unit } = cckpData;
+
+  // Build combined year list
+  const histYears = historical?.years ?? [];
+  const futYears = scenarioDatasets?.[0]?.years ?? [];
+  const allYears = [...new Set([...histYears, ...futYears])].sort((a, b) => a - b);
+
+  // Build column headers
+  const scenarioCols = (scenarioDatasets ?? []).flatMap((s) => [
+    `${s.id}_p10`, `${s.id}_median`, `${s.id}_p90`,
+  ]);
+  const headers = ['year', 'historical_p10', 'historical_median', 'historical_p90', ...scenarioCols];
+
+  function valAt(arr, years, year) {
+    const i = years.indexOf(year);
+    if (i < 0 || arr == null) return '';
+    const v = arr[i];
+    return v === null || v === undefined ? '' : v;
+  }
+
+  const rows = allYears.map((year) => [
+    year,
+    valAt(historical?.p10,    histYears, year),
+    valAt(historical?.median, histYears, year),
+    valAt(historical?.p90,    histYears, year),
+    ...(scenarioDatasets ?? []).flatMap((s) => [
+      valAt(s.p10,    s.years, year),
+      valAt(s.median, s.years, year),
+      valAt(s.p90,    s.years, year),
+    ]),
+  ]);
+
+  const meta = [
+    `# World Bank CCKP Climate Projection`,
+    `# Location: ${locationName || geocode}  |  Geocode: ${geocode}`,
+    `# Variable: ${variable}  |  Unit: ${unit}`,
+    `# Source: CCKP CMIP6 ensemble · p10/median/p90`,
+    `# Exported: ${new Date().toISOString()}`,
+    '',
+  ];
+
+  const lines = [...meta, headers.join(','), ...rows.map((r) => r.join(','))];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  triggerDownload(blob, `cckp_${variable}_${geocode}.csv`);
+}
+
 /**
  * Builds a flat table from the API response.
  * Returns { headers: string[], rows: (string|number|null)[][] }

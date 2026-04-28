@@ -26,4 +26,11 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  // Node.js files — api/ serverless functions and build config
+  {
+    files: ['api/**/*.js', 'vite.config.js', 'scripts/**/*.cjs'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 ])
