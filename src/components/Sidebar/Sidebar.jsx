@@ -131,6 +131,7 @@ export default function Sidebar({
                 onClear={onCSVClear}
                 parseError={csvError}
                 skipped={csvSkipped}
+                onLocationSelect={(loc) => onLocationSearch({ lat: loc.lat, lon: loc.lon, name: loc.name })}
               />
             </section>
           </>
