@@ -4,22 +4,12 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import './index.css'
 import App from './App.jsx'
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_placeholder'
 
-const root = createRoot(document.getElementById('root'))
-
-if (PUBLISHABLE_KEY) {
-  root.render(
-    <StrictMode>
-      <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-        <App />
-      </ClerkProvider>
-    </StrictMode>,
-  )
-} else {
-  root.render(
-    <StrictMode>
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <App />
-    </StrictMode>,
-  )
-}
+    </ClerkProvider>
+  </StrictMode>,
+)

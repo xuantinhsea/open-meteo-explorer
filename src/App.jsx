@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 import Sidebar from './components/Sidebar/Sidebar';
 import MapPanel from './components/Map/MapPanel';
 import ChartPanel from './components/Charts/ChartPanel';
@@ -14,13 +15,8 @@ import { CCKP_SCENARIOS, CCKP_VARIABLES } from './utils/cckpConfig';
 
 const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
-let SignedIn, SignedOut, SignInButton, UserButton, useUser
-if (CLERK_ENABLED) {
-  ({ SignedIn, SignedOut, SignInButton, UserButton, useUser } = require('@clerk/clerk-react'))
-}
-
 export default function App() {
-  const { user } = CLERK_ENABLED ? useUser() : { user: null };
+  const { user } = useUser();
   const isAdmin = user?.primaryEmailAddress?.emailAddress === 'xuantinhsea@gmail.com';
 
   const [sidebarOpen, setSidebarOpen] = useState(false);

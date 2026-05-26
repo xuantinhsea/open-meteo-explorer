@@ -1,11 +1,7 @@
+import { useAuth, useUser, SignInButton } from '@clerk/clerk-react';
 import { exportCSV, exportTXT, exportExcel } from '../../utils/exportData';
 
 const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
-
-let useAuth, useUser, SignInButton
-if (CLERK_ENABLED) {
-  ({ useAuth, useUser, SignInButton } = require('@clerk/clerk-react'))
-}
 
 const BUTTONS = [
   {
