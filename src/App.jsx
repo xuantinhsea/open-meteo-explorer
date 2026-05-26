@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import Sidebar from './components/Sidebar/Sidebar';
 import MapPanel from './components/Map/MapPanel';
 import ChartPanel from './components/Charts/ChartPanel';
@@ -11,6 +10,13 @@ import { MODELS, DEFAULT_VARIABLES } from './utils/variableConfig';
 import { getDateConstraints } from './utils/dateUtils';
 import { fetchCCKPScenario, fetchCCKPHistorical } from './api/worldbank';
 import { CCKP_SCENARIOS, CCKP_VARIABLES } from './utils/cckpConfig';
+
+const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+let SignedIn, SignedOut, SignInButton, UserButton
+if (CLERK_ENABLED) {
+  ({ SignedIn, SignedOut, SignInButton, UserButton } = require('@clerk/clerk-react'))
+}
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -182,17 +188,21 @@ export default function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button className="text-xs px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-md transition-colors">
-                  Sign in to export
-                </button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <span className="text-xs text-slate-400 hidden md:inline">Export enabled</span>
-              <UserButton afterSignOutUrl="/" />
-            </SignedIn>
+            {CLERK_ENABLED && (
+              <>
+                <SignedOut>
+                  <SignInButton mode="modal">
+                    <button className="text-xs px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-md transition-colors">
+                      Sign in to export
+                    </button>
+                  </SignInButton>
+                </SignedOut>
+                <SignedIn>
+                  <span className="text-xs text-slate-400 hidden md:inline">Export enabled</span>
+                  <UserButton afterSignOutUrl="/" />
+                </SignedIn>
+              </>
+            )}
           </div>
         </div>
 
