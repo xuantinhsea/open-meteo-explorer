@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Sidebar from './components/Sidebar/Sidebar';
 import MapPanel from './components/Map/MapPanel';
 import ChartPanel from './components/Charts/ChartPanel';
@@ -10,6 +10,7 @@ import { MODELS, DEFAULT_VARIABLES } from './utils/variableConfig';
 import { getDateConstraints } from './utils/dateUtils';
 import { fetchCCKPScenario, fetchCCKPHistorical } from './api/worldbank';
 import { CCKP_SCENARIOS, CCKP_VARIABLES } from './utils/cckpConfig';
+import { buildShareUrl, readShareParams } from './utils/shareUrl';
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -31,6 +32,16 @@ export default function App() {
 
   const { data, loading, error, fromCache, fetch: fetchWeather } = useWeatherData();
   const { locations: csvLocations, parseError, skipped, importCSV, clearLocations } = useCSVLocations();
+
+  useEffect(() => {
+    const params = readShareParams();
+    if (params.mode) setMode(params.mode);
+    if (params.lat && params.lon) {
+      setActiveLocation({ lat: params.lat, lon: params.lon, name: `${params.lat.toFixed(4)}, ${params.lon.toFixed(4)}` });
+    }
+    if (params.startDate) setStartDate(params.startDate);
+    if (params.endDate) setEndDate(params.endDate);
+  }, []);
 
   function handleModeChange(newMode) {
     setMode(newMode);
@@ -172,6 +183,19 @@ export default function App() {
           <span className="text-sm font-semibold text-slate-700 hidden md:block">Open-Meteo Explorer</span>
           <span className="text-sm font-semibold text-slate-700 md:hidden">Open-Meteo Explorer</span>
           <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => {
+                const url = buildShareUrl({ mode, lat: activeLocation?.lat, lon: activeLocation?.lon, startDate, endDate });
+                navigator.clipboard.writeText(url);
+                alert('Location link copied to clipboard!');
+              }}
+              className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              title="Copy shareable link"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.658 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            </button>
             <button
               onClick={() => setShowAbout(true)}
               className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
