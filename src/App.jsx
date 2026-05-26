@@ -4,6 +4,7 @@ import MapPanel from './components/Map/MapPanel';
 import ChartPanel from './components/Charts/ChartPanel';
 import ProjectionMap from './components/Charts/ProjectionMap';
 import AboutModal from './components/UI/AboutModal';
+import AdminPanel from './components/Admin/AdminPanel';
 import { useWeatherData } from './hooks/useWeatherData';
 import { useCSVLocations } from './hooks/useCSVLocations';
 import { MODELS, DEFAULT_VARIABLES } from './utils/variableConfig';
@@ -13,14 +14,18 @@ import { CCKP_SCENARIOS, CCKP_VARIABLES } from './utils/cckpConfig';
 
 const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
-let SignedIn, SignedOut, SignInButton, UserButton
+let SignedIn, SignedOut, SignInButton, UserButton, useUser
 if (CLERK_ENABLED) {
-  ({ SignedIn, SignedOut, SignInButton, UserButton } = require('@clerk/clerk-react'))
+  ({ SignedIn, SignedOut, SignInButton, UserButton, useUser } = require('@clerk/clerk-react'))
 }
 
 export default function App() {
+  const { user } = CLERK_ENABLED ? useUser() : { user: null };
+  const isAdmin = user?.primaryEmailAddress?.emailAddress === 'xuantinhsea@gmail.com';
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [mode, setMode] = useState('forecast');
   const [resolution, setResolution] = useState('hourly');
   const [activeLocation, setActiveLocation] = useState(null);
@@ -164,6 +169,9 @@ export default function App() {
       {/* About modal */}
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
 
+      {/* Admin panel */}
+      <AdminPanel open={showAdmin} onClose={() => setShowAdmin(false)} />
+
       {/* Main content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
@@ -188,6 +196,17 @@ export default function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
+            {CLERK_ENABLED && isAdmin && (
+              <button
+                onClick={() => setShowAdmin(true)}
+                className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors"
+                title="Admin panel"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+              </button>
+            )}
             {CLERK_ENABLED && (
               <>
                 <SignedOut>
