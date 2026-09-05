@@ -85,7 +85,7 @@ export default function AboutModal({ onClose }) {
           <section>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Built With</h3>
             <div className="flex flex-wrap gap-1.5">
-              {['React 18', 'Vite 5', 'Tailwind CSS v4', 'Chart.js', 'Leaflet', 'Clerk Auth', 'Vercel'].map((t) => (
+              {['React 18', 'Vite 5', 'Tailwind CSS v4', 'Chart.js', 'Leaflet', 'Google Apps Script'].map((t) => (
                 <span key={t} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] rounded-full border border-slate-200">
                   {t}
                 </span>
@@ -101,7 +101,8 @@ export default function AboutModal({ onClose }) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-800">Dr. Nguyen Xuan Tinh</p>
-                <p className="text-xs text-slate-500">Developer &amp; Researcher · CTI-AAP / CTII</p>
+                <p className="text-xs text-slate-500">Senior Hydrologist</p>
+                <p className="text-xs text-slate-500">Nippon Koei Co., Ltd. · Dept. of Water Resources &amp; Energy</p>
                 <a
                   href="mailto:xuantinhsea@gmail.com"
                   className="text-xs text-blue-500 hover:text-blue-700 transition-colors"

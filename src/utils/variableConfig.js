@@ -242,12 +242,16 @@ export const MODELS = {
   ],
   historical: [
     {
+      id: 'era5_seamless', label: 'ERA5 Seamless (recommended)',
+      dataRange: { start: '1940-01-01', end: 'present', delayDays: 6, resolution: 'Hourly', resolutionKm: '11–25 km', region: 'Global', updateFreq: 'Daily' },
+    },
+    {
       id: 'era5', label: 'ERA5 (ECMWF)',
-      dataRange: { start: '1940-01-01', end: 'present', delayDays: 5, resolution: 'Hourly', resolutionKm: '25 km', region: 'Global', updateFreq: 'Daily' },
+      dataRange: { start: '1940-01-01', end: 'present', delayDays: 6, resolution: 'Hourly', resolutionKm: '25 km', region: 'Global', updateFreq: 'Daily' },
     },
     {
       id: 'era5_land', label: 'ERA5-Land (ECMWF)',
-      dataRange: { start: '1950-01-01', end: 'present', delayDays: 5, resolution: 'Hourly', resolutionKm: '11 km', region: 'Global', updateFreq: 'Daily' },
+      dataRange: { start: '1950-01-01', end: 'present', delayDays: 6, resolution: 'Hourly', resolutionKm: '11 km', region: 'Global', updateFreq: 'Daily' },
     },
     {
       id: 'ecmwf_ifs', label: 'ECMWF IFS',
@@ -255,7 +259,7 @@ export const MODELS = {
     },
     {
       id: 'era5_ensemble', label: 'ERA5 Ensemble',
-      dataRange: { start: '1940-01-01', end: 'present', delayDays: 5, resolution: '3-Hourly', resolutionKm: '55 km', region: 'Global', updateFreq: 'Daily' },
+      dataRange: { start: '1940-01-01', end: 'present', delayDays: 6, resolution: '3-Hourly', resolutionKm: '55 km', region: 'Global', updateFreq: 'Daily' },
     },
     {
       id: 'cerra', label: 'CERRA (Europe)',
@@ -339,7 +343,7 @@ export const MODELS = {
     },
     {
       id: 'era5_ocean', label: 'ERA5-Ocean (historical)',
-      dataRange: { start: '1940-01-01', end: 'present', delayDays: 5, resolution: 'Hourly', resolutionKm: '50 km', region: 'Global', updateFreq: 'Daily' },
+      dataRange: { start: '1940-01-01', end: 'present', delayDays: 6, resolution: 'Hourly', resolutionKm: '50 km', region: 'Global', updateFreq: 'Daily' },
     },
   ],
   flood: [
@@ -447,6 +451,52 @@ export function resolveModelDateRange(dataRange) {
 // Finds a model config by mode + model id.
 export function findModel(mode, modelId) {
   return (MODELS[mode] || []).find((m) => m.id === modelId) || null;
+}
+
+// ─── Per-model variable availability ──────────────────────────────────────────
+// Some datasets answer HTTP 200 for every variable but return an array of nulls
+// for the ones they don't actually carry, so an unsupported variable looks like
+// an empty chart rather than an error. Only models that carry a *subset* need an
+// entry here; a model with no entry is treated as supporting everything its mode
+// offers. Verified against the live archive API (Berlin, 2024-06-01).
+export const MODEL_VARIABLE_SUPPORT = {
+  historical: {
+    // ERA5-Land on Open-Meteo only serves 2 m temperature, dew point and the
+    // relative humidity derived from them. Use ERA5 Seamless for everything else.
+    era5_land: {
+      note: 'ERA5-Land only carries temperature and humidity. Pick ERA5 Seamless for precipitation, wind, cloud or radiation at the same 11 km resolution.',
+      hourly: ['temperature_2m', 'dew_point_2m', 'relative_humidity_2m'],
+      daily: ['temperature_2m_max', 'temperature_2m_min', 'temperature_2m_mean'],
+    },
+  },
+  marine: {
+    // SMOC is ocean-state only; the wave models carry no ocean variables.
+    meteofrance_currents: {
+      note: 'SMOC is an ocean-state model: it carries currents, sea surface temperature and sea level only — no wave variables.',
+      hourly: ['sea_surface_temperature', 'sea_level_height', 'ocean_current_velocity', 'ocean_current_direction', 'invert_barometer_height'],
+      daily: [],
+    },
+  },
+};
+
+// Returns the ids in varIds that the given model does not carry.
+export function getUnsupportedVars(mode, modelId, resolution, varIds = []) {
+  const spec = MODEL_VARIABLE_SUPPORT[mode]?.[modelId];
+  if (!spec) return [];
+  const supported = spec[resolution === 'daily' ? 'daily' : 'hourly'];
+  if (!supported) return [];
+  const set = new Set(supported);
+  return varIds.filter((id) => !set.has(id));
+}
+
+// True when this model carries the variable at this resolution.
+export function isVarSupported(mode, modelId, resolution, varId) {
+  return getUnsupportedVars(mode, modelId, resolution, [varId]).length === 0;
+}
+
+// The human-readable caveat for a model, if it has one.
+export function getModelSupportNote(mode, modelId) {
+  return MODEL_VARIABLE_SUPPORT[mode]?.[modelId]?.note ?? null;
 }
 
 export const DEFAULT_VARIABLES = {

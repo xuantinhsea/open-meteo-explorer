@@ -32,7 +32,7 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: /open-meteo-explorer/
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_DOWNLOAD_LOG_ENDPOINT: ${{ secrets.VITE_DOWNLOAD_LOG_ENDPOINT }}
 
       - uses: actions/upload-pages-artifact@v3
         with:

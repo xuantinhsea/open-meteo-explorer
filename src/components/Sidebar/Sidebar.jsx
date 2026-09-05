@@ -116,6 +116,7 @@ export default function Sidebar({
               <SectionLabel>Variables</SectionLabel>
               <VariableSelector
                 mode={mode}
+                model={model}
                 resolution={dailyOnlyMode ? 'daily' : resolution}
                 selected={selectedVars}
                 onChange={onVarsChange}

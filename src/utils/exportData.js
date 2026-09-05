@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx';
-
 // ─── CCKP Projection CSV export ───────────────────────────────────────────────
 export function exportCCKPCSV(cckpData) {
   if (!cckpData) return;
@@ -132,10 +130,14 @@ export function exportTXT(data, selectedVars) {
   triggerDownload(blob, safeFilename(data, 'txt'));
 }
 
-export function exportExcel(data, selectedVars) {
+// SheetJS is by far the heaviest dependency here and only the Excel button
+// needs it, so it is pulled in on demand rather than shipped in the initial
+// bundle. That makes this the one async exporter — callers must await it.
+export async function exportExcel(data, selectedVars) {
   const { headers, rows } = buildTable(data, selectedVars);
   if (!rows.length) return;
 
+  const XLSX = await import('xlsx');
   const wb = XLSX.utils.book_new();
 
   // --- Data sheet ---

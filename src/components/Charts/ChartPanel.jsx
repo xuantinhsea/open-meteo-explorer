@@ -10,6 +10,7 @@ import ExportBar from './ExportBar';
 import {
   TEMP_VARIABLE_IDS, PRECIP_VARIABLE_IDS,
   MARINE_HEIGHT_IDS, MARINE_PERIOD_IDS, MARINE_DIRECTION_IDS, MARINE_OCEAN_IDS,
+  findModel,
 } from '../../utils/variableConfig';
 import { exportCCKPCSV } from '../../utils/exportData';
 
@@ -44,7 +45,7 @@ function computeMean(memberDatasets) {
   return { values };
 }
 
-export default function ChartPanel({ data, loading, error, fromCache, mode, selectedVars, cckpData, cckpLoading, cckpError }) {
+export default function ChartPanel({ data, loading, error, fromCache, mode, model, selectedVars, location, startDate, endDate, cckpData, cckpLoading, cckpError }) {
   const tempRef    = useRef(null);
   const precipRef  = useRef(null);
   const ensRef     = useRef(null);
@@ -71,13 +72,17 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, sele
     return best;
   }, [times, mode]);
 
+  // The Open-Meteo responses carry no model field, so the label has to come from
+  // the model the user actually picked — otherwise every historical result reads
+  // "ERA5" even when it was fetched from CERRA or ECMWF IFS.
   const sourceLabel = useMemo(() => {
     if (!data) return null;
-    if (mode === 'historical') return data.model || 'ERA5';
-    if (mode === 'climate') return data.model || 'Climate Model';
-    if (mode === 'ensemble') return data.model || 'Ensemble';
-    return data.model || 'Open-Meteo Forecast';
-  }, [data, mode]);
+    const picked = findModel(mode, model)?.label;
+    if (picked) return picked;
+    if (mode === 'climate') return 'Climate Model';
+    if (mode === 'ensemble') return 'Ensemble';
+    return 'Open-Meteo Forecast';
+  }, [data, mode, model]);
 
   const tempVars    = useMemo(() => selectedVars.filter((id) => TEMP_VARIABLE_IDS.has(id)), [selectedVars]);
   const precipVars  = useMemo(() => selectedVars.filter((id) => PRECIP_VARIABLE_IDS.has(id)), [selectedVars]);
@@ -90,6 +95,27 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, sele
   const marinePeriodVars    = useMemo(() => selectedVars.filter((id) => MARINE_PERIOD_IDS.has(id)),    [selectedVars]);
   const marineDirectionVars = useMemo(() => selectedVars.filter((id) => MARINE_DIRECTION_IDS.has(id)), [selectedVars]);
   const marineOceanVars     = useMemo(() => selectedVars.filter((id) => MARINE_OCEAN_IDS.has(id)),     [selectedVars]);
+
+  // Last line of defence against the silent-null response. A dataset queried
+  // outside its coverage — CERRA past 2021, a regional model outside its domain,
+  // a wave variable asked of an ocean-current model — answers HTTP 200 with an
+  // array of nulls, which would otherwise render as a blank chart and export as
+  // empty columns. Computed before the per-mode early returns so every panel
+  // gets the warning.
+  const emptyVars = useMemo(() => {
+    const store = (key && data) ? data[key] : null;
+    if (!store) return [];
+    return selectedVars.filter((id) => {
+      const col = store[id];
+      return Array.isArray(col) && col.length > 0 && col.every((v) => v === null);
+    });
+  }, [data, key, selectedVars]);
+
+  const allEmpty = useMemo(() => {
+    const store = (key && data) ? data[key] : null;
+    if (!store || emptyVars.length === 0) return false;
+    return emptyVars.length === selectedVars.filter((id) => Array.isArray(store[id])).length;
+  }, [data, key, selectedVars, emptyVars]);
 
   // ── CCKP Projection panel — rendered after all hooks ──
   if (mode === 'projection') {
@@ -188,10 +214,11 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, sele
     return (
       <div className="flex flex-col h-full">
         <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
+          <EmptyDataNotice vars={emptyVars} allEmpty={allEmpty} />
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-sm font-semibold text-slate-700">Marine Data</h2>
-              <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-cyan-50 text-cyan-700 border-cyan-200">{data.model || 'Marine API'}</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-cyan-50 text-cyan-700 border-cyan-200">{sourceLabel || 'Marine API'}</span>
               {fromCache && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-slate-100 text-slate-500 border-slate-200">⚡ cached</span>
               )}
@@ -226,7 +253,11 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, sele
             <p className="text-sm text-slate-400 text-center py-8">Select variables in the sidebar to display charts.</p>
           )}
         </div>
-        <ExportBar data={data} selectedVars={selectedVars} />
+        <ExportBar
+          data={data} selectedVars={selectedVars}
+          mode={mode} model={model} location={location}
+          startDate={startDate} endDate={endDate}
+        />
       </div>
     );
   }
@@ -260,11 +291,12 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, sele
     return (
       <div className="flex flex-col h-full">
         <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
+          <EmptyDataNotice vars={emptyVars} allEmpty={allEmpty} />
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-sm font-semibold text-slate-700">Flood Data</h2>
               <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-orange-50 text-orange-700 border-orange-200">
-                {data.model || 'GloFAS v4'}
+                {sourceLabel || 'GloFAS v4'}
               </span>
               {fromCache && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-slate-100 text-slate-500 border-slate-200">⚡ cached</span>
@@ -295,7 +327,11 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, sele
             Source: Global Flood Awareness System (GloFAS) · 5 km resolution · Note: ensemble stats (mean, median, p25, p75, max, min) are only available for forecasts, not reanalysis.
           </div>
         </div>
-        <ExportBar data={data} selectedVars={selectedVars} />
+        <ExportBar
+          data={data} selectedVars={selectedVars}
+          mode={mode} model={model} location={location}
+          startDate={startDate} endDate={endDate}
+        />
       </div>
     );
   }
@@ -336,6 +372,7 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, sele
     <div className="flex flex-col h-full">
       {/* Scrollable chart area */}
       <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
+        <EmptyDataNotice vars={emptyVars} allEmpty={allEmpty} />
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -415,7 +452,32 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, sele
       </div>
 
       {/* Export bar — always visible at the bottom */}
-      <ExportBar data={data} selectedVars={selectedVars} />
+      <ExportBar
+          data={data} selectedVars={selectedVars}
+          mode={mode} model={model} location={location}
+          startDate={startDate} endDate={endDate}
+        />
+    </div>
+  );
+}
+
+// Explains an HTTP-200-but-empty response rather than leaving a blank chart.
+function EmptyDataNotice({ vars, allEmpty }) {
+  if (!vars?.length) return null;
+  const plural = vars.length > 1;
+  return (
+    <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 leading-snug">
+      <p className="font-semibold mb-1">
+        {allEmpty ? 'This model returned no data for your request.' : 'Some variables came back empty.'}
+      </p>
+      <p>
+        <span className="font-medium">{vars.join(', ')}</span>{' '}
+        {plural ? 'are' : 'is'} entirely empty for this model, location and date range.
+        The API reported success but holds no values here — usually the dates fall outside the
+        dataset's coverage, the location is outside its region, or the model does not carry
+        {plural ? ' these variables' : ' this variable'}.
+        Check the <strong>Data Availability</strong> box under the model picker.
+      </p>
     </div>
   );
 }

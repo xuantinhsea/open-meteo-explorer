@@ -37,7 +37,8 @@ export function getDateConstraints(mode) {
       // Forecast API supports past ~92 days + up to 16 days ahead
       return { min: daysAgo(92), max: daysAhead(16), defaultStart: daysAgo(7), defaultEnd: daysAhead(7) };
     case 'historical':
-      return { min: '1940-01-01', max: daysAgo(5), defaultStart: daysAgo(365), defaultEnd: daysAgo(5) };
+      // The ERA5 family lags ~6 days; day -5 still comes back partly null.
+      return { min: '1940-01-01', max: daysAgo(6), defaultStart: daysAgo(365), defaultEnd: daysAgo(6) };
     case 'ensemble':
       // Ensemble models go 10–35 days ahead depending on model
       return { min: daysAgo(92), max: daysAhead(35), defaultStart: now, defaultEnd: daysAhead(10) };

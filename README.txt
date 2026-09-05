@@ -1,7 +1,8 @@
 ================================================================================
   OPEN-METEO EXPLORER  v2.0
   Global Weather, Marine, Flood & Climate Data Visualization Tool
-  Developed by Dr. Nguyen Xuan Tinh  ·  CTII
+  Developed by Dr. Nguyen Xuan Tinh  ·  Senior Hydrologist
+  Nippon Koei Co., Ltd.  ·  Department of Water Resources and Energy
   Contact : xuantinhsea@gmail.com
 ================================================================================
 
@@ -21,8 +22,11 @@ DATA MODES
   Forecast        7–16 day hourly/daily weather from 14+ global NWP models
                   (Open-Meteo Forecast API — api.open-meteo.com)
 
-  Historical      Hourly/daily records from 1940 to present via ERA5 and
-                  other reanalysis models (Open-Meteo Archive API)
+  Historical      Hourly/daily records from 1940 to present. Default model is
+                  ERA5 Seamless (ERA5-Land 11 km where available, ERA5 25 km
+                  elsewhere) — the only archive model carrying every variable.
+                  Also ERA5, ERA5-Land, ERA5 Ensemble, ECMWF IFS and CERRA
+                  (Open-Meteo Archive API — archive-api.open-meteo.com)
 
   Ensemble        Multi-model probabilistic forecasts with ensemble ribbons
                   and member spread (Open-Meteo Ensemble API)
@@ -66,17 +70,31 @@ KEY FEATURES
     · Marine charts split by variable type: Wave Heights, Wave Periods,
       Wave Directions, and Ocean Conditions
 
-  Data Export (requires sign-in)
+  Data Export
     · CSV  — raw time-series data with header metadata
     · TXT  — fixed-width formatted table for printing/reports
     · Excel — two-sheet workbook: "Data" (values) + "Metadata" (model, dates,
               coordinates, variables, resolution)
-    · File downloads are logged via email notification to the administrator
+    · No account or sign-in needed. Before the first export in a session the
+      user supplies name, email, organisation and intended use; the details are
+      remembered for the rest of the session and prefilled on later visits.
+    · Each download is appended to a Google Sheet and emailed to the site owner
+      via a Google Apps Script web app (see scripts/apps-script/README.md).
+      With no endpoint configured the form is skipped and exports work as
+      normal — a logging failure never blocks anyone getting data.
 
-  Authentication
-    · Powered by Clerk — modal sign-in with social/email providers
-    · Export buttons are gated: unauthenticated users see "Sign in to download"
-    · New user registrations trigger an email alert to the administrator
+  Data-availability safeguards
+    · Open-Meteo answers an out-of-coverage request with HTTP 200 and an array
+      of nulls rather than an error, so an unavailable dataset would otherwise
+      look like an empty chart. Three layers guard against that:
+        1. Variables a model does not carry are greyed out and struck through
+           in the sidebar, with the reason shown (MODEL_VARIABLE_SUPPORT in
+           variableConfig.js). ERA5-Land, for example, carries only temperature
+           and humidity — not precipitation, wind, cloud or radiation.
+        2. Changing model clamps the date range into that dataset's coverage
+           and drops any selected variable the new model cannot serve.
+        3. If a response still comes back all-null, the chart panel explains
+           why instead of rendering blank axes.
 
   Performance
     · Session-level in-memory cache — repeated identical requests are served
@@ -96,14 +114,13 @@ TECH STACK
   Styling           Tailwind CSS v4 (via @tailwindcss/vite plugin)
   Charts            Chart.js 4 + react-chartjs-2 + chartjs-plugin-annotation
   Map               Leaflet 1.9.4 + react-leaflet
-  Authentication    Clerk (@clerk/clerk-react)
+  Authentication    None — the app is fully open, no account required
   CSV parsing       PapaParse
   Excel export      SheetJS (xlsx)
   HTTP              Native fetch (no Axios)
   State             React useState / useCallback (no Redux)
-  Serverless        Vercel Functions (Node.js) for webhook and download logging
-  Email             Resend API (transactional email notifications)
-  Webhook verify    Svix (Clerk webhook signature verification)
+  Backend           None. Download logging is a Google Apps Script web app
+                    that writes to a Google Sheet and emails the owner.
 
 IMPORTANT: Stay on Vite 5. Vite 8+ uses Rolldown which cannot resolve Leaflet
 from node_modules. Do not upgrade Vite past v5.
@@ -135,8 +152,7 @@ LOCAL SETUP
     Required variables (see ENVIRONMENT VARIABLES section below).
 
 4.  Start the development server:
-      npm run dev             → http://localhost:5173  (UI only)
-      npx vercel dev          → http://localhost:3000  (UI + serverless /api/)
+      npm run dev             → http://localhost:5173
 
 5.  Open your browser at the URL shown above.
 
@@ -146,26 +162,18 @@ ENVIRONMENT VARIABLES
 Create a file named .env.local in the project root. Never commit this file.
 A template is provided in .env.example.
 
-  VITE_CLERK_PUBLISHABLE_KEY   Your Clerk publishable key (pk_test_... or
-                                pk_live_...). Required for auth to work.
-                                Get it from clerk.com → API Keys.
+  VITE_DOWNLOAD_LOG_ENDPOINT   Optional. Google Apps Script web-app URL that
+                                logs each data download to a Google Sheet and
+                                emails the site owner. Setup instructions:
+                                scripts/apps-script/README.md
+                                Leave it unset and the contact form is skipped
+                                — exports still work exactly as before.
 
-  CLERK_WEBHOOK_SECRET          Signing secret from Clerk Dashboard →
-                                Webhooks → your endpoint. Required for the
-                                /api/webhook-clerk serverless function to
-                                verify incoming webhook requests.
+All weather data (Open-Meteo APIs and World Bank CCKP) requires NO API key.
 
-  RESEND_API_KEY                API key from resend.com. Required for the
-                                admin notification emails (new registrations
-                                and data downloads).
-
-  NOTIFY_EMAIL                  Email address that receives admin alerts.
-                                E.g.: xuantinhsea@gmail.com
-
-Core weather data (Open-Meteo APIs and World Bank CCKP) requires NO API key.
-
-For Vercel deployment, add these same four variables in the Vercel Dashboard
-under Settings → Environment Variables.
+For the GitHub Pages deploy, add VITE_DOWNLOAD_LOG_ENDPOINT as a repository
+secret under Settings → Secrets and variables → Actions. The workflow already
+passes it through to the build.
 
 
 AVAILABLE SCRIPTS
@@ -187,27 +195,24 @@ BUILD & DEPLOY
      Build Command     : npm run build
      Output Directory  : dist
      Install Command   : npm install
-4. Add the four environment variables listed above (Settings → Env Vars).
-5. Deploy. Vercel handles CDN, HTTPS, preview URLs, and the /api/ functions.
-
-To set up Clerk webhook on Vercel:
-  · Clerk Dashboard → Webhooks → Add Endpoint
-  · URL: https://your-app.vercel.app/api/webhook-clerk
-  · Events: user.created
-  · Copy the Signing Secret → paste as CLERK_WEBHOOK_SECRET in Vercel.
+4. Add VITE_DOWNLOAD_LOG_ENDPOINT if you want download logging (Settings →
+   Env Vars). Everything else runs with no configuration.
+5. Deploy. Vercel handles CDN, HTTPS and preview URLs.
 
 --- GitHub Pages (alternative) ---
 A GitHub Actions workflow (.github/workflows/deploy.yml) is included.
 It builds the app and deploys to the gh-pages branch automatically on every
 push to main.
 
-Required GitHub Secrets (Settings → Secrets → Actions):
-  VITE_CLERK_PUBLISHABLE_KEY   (same as above)
-  VITE_BASE_PATH               Set to /open-meteo-explorer/  (your repo name)
+Optional GitHub Secret (Settings → Secrets and variables → Actions):
+  VITE_DOWNLOAD_LOG_ENDPOINT   Apps Script web-app URL for download logging.
+                               Without it, exports work but are not logged.
 
-Note: GitHub Pages only serves static files. The /api/ serverless functions
-(download logging, webhook) do NOT run on GitHub Pages. Vercel is required
-for those features.
+VITE_BASE_PATH is set inside the workflow itself (/open-meteo-explorer/).
+
+Note: GitHub Pages serves static files only, but nothing here needs a server
+of its own — download logging runs on Google Apps Script, so the full feature
+set works on GitHub Pages.
 
 
 DATA SOURCES
@@ -274,9 +279,19 @@ KNOWN ISSUES
    "No data returned for this location" appears, the geocode is valid but
    not covered by the CCKP dataset.
 
-7. Serverless functions require Vercel (or npx vercel dev locally)
-   The /api/webhook-clerk and /api/log-download endpoints only run on Vercel
-   or via the Vercel CLI locally. They do not run in npm run dev (Vite only).
+7. ERA5-Land carries only temperature and humidity
+   On Open-Meteo, models=era5_land serves 2 m temperature, dew point and
+   relative humidity. Every other variable comes back as an array of nulls
+   with an HTTP 200. Use ERA5 Seamless for precipitation, wind, cloud or
+   radiation at the same 11 km resolution. The sidebar greys out the
+   unavailable variables automatically.
+
+8. Out-of-coverage requests succeed but return nulls
+   CERRA ends 2021-06-30 and ECMWF IFS starts 2017-01-01. Asking either for
+   dates outside that window returns HTTP 200 with every value null rather
+   than an error. Changing model now clamps the date range automatically, and
+   an all-null response is explained in the chart panel instead of rendering
+   a blank chart.
 
 
 PROJECT STRUCTURE
@@ -300,7 +315,8 @@ PROJECT STRUCTURE
         EnsembleChart.jsx     Ensemble member traces + mean ribbon
         ProjectionChart.jsx   CCKP historical + scenario bands
         ProjectionMap.jsx     Choropleth map for WB Projection mode
-        ExportBar.jsx         CSV / TXT / Excel export buttons (auth-gated)
+        ExportBar.jsx         CSV / TXT / Excel buttons; opens the contact
+                              form on the first export of a session
 
       Map/
         MapPanel.jsx          Leaflet map with location pin + CSV pins
@@ -321,6 +337,8 @@ PROJECT STRUCTURE
         ErrorBanner.jsx
         Badge.jsx
         AboutModal.jsx        About dialog with features, credits, copyright
+        DownloadGateModal.jsx Name/email/organisation form shown before the
+                              first data export of a session
 
     hooks/
       useWeatherData.js     Fetcher + session-level cache for all weather modes
@@ -332,6 +350,9 @@ PROJECT STRUCTURE
       dateUtils.js          Date helpers + getDateConstraints() per mode
       csvParser.js          CSV row validation + column detection
       exportData.js         CSV / TXT / Excel export logic
+      downloadTracking.js   Contact capture: session memory + fire-and-forget
+                            POST to the Apps Script logger
+      shareUrl.js           Permalink build/parse for the share button
       cckpConfig.js         CCKP scenario and variable configuration
       countryCentroids.js   Country centroid coordinates for projection map
 
@@ -339,14 +360,12 @@ PROJECT STRUCTURE
     data/
       geonames.json         CCKP geocode → region name mapping
 
-  api/  (Vercel serverless functions)
-    webhook-clerk.js        Receives Clerk user.created webhook, sends
-                            admin registration alert via Resend
-    log-download.js         Receives download event from ExportBar,
-                            sends admin download alert via Resend
-
   scripts/
     fix-leaflet.cjs         Postinstall: extracts Leaflet dist/ on Windows
+    apps-script/
+      Code.gs               Google Apps Script web app: logs each download to
+                            a Google Sheet and emails the site owner
+      README.md             One-time deployment steps for the above
 
   .github/
     workflows/
@@ -370,7 +389,8 @@ LICENSE & COPYRIGHT
 -------------------
 © 2026 Dr. Nguyen Xuan Tinh. All rights reserved.
 
-Developed by Dr. Nguyen Xuan Tinh, Researcher at CTI-AAP / CTII.
+Developed by Dr. Nguyen Xuan Tinh, Senior Hydrologist,
+Nippon Koei Co., Ltd. — Department of Water Resources and Energy.
 Contact: xuantinhsea@gmail.com
 
 Data is sourced from Open-Meteo (open-meteo.com, CC BY 4.0) and the World Bank

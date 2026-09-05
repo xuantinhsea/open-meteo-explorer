@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import Sidebar from './components/Sidebar/Sidebar';
 import MapPanel from './components/Map/MapPanel';
 import ChartPanel from './components/Charts/ChartPanel';
@@ -6,24 +6,65 @@ import ProjectionMap from './components/Charts/ProjectionMap';
 import AboutModal from './components/UI/AboutModal';
 import { useWeatherData } from './hooks/useWeatherData';
 import { useCSVLocations } from './hooks/useCSVLocations';
-import { MODELS, DEFAULT_VARIABLES } from './utils/variableConfig';
+import { MODES, MODELS, DEFAULT_VARIABLES, findModel, resolveModelDateRange, getUnsupportedVars } from './utils/variableConfig';
 import { getDateConstraints } from './utils/dateUtils';
 import { fetchCCKPScenario, fetchCCKPHistorical } from './api/worldbank';
 import { CCKP_SCENARIOS, CCKP_VARIABLES } from './utils/cckpConfig';
 import { buildShareUrl, readShareParams } from './utils/shareUrl';
 
+// A share link is fixed for the lifetime of the page load, so resolve it once
+// here and seed the initial state from it. Restoring it from an effect instead
+// would set state during mount (a cascading render) and, because it only ever
+// wrote mode/location/dates, would leave the model and variables on their
+// forecast defaults — so a shared marine or flood link opened with variables
+// that dataset does not carry.
+const SHARED = readShareParams();
+const INITIAL_MODE = SHARED.mode && MODES.some((m) => m.id === SHARED.mode) ? SHARED.mode : 'forecast';
+const INITIAL_RESOLUTION = (INITIAL_MODE === 'climate' || INITIAL_MODE === 'flood') ? 'daily' : 'hourly';
+const INITIAL_CONSTRAINTS = getDateConstraints(INITIAL_MODE);
+
+// Narrows a date range into a model's actual coverage. Returns [start, end].
+function clampToModel(mode, modelId, startDate, endDate) {
+  const range = resolveModelDateRange(findModel(mode, modelId)?.dataRange);
+  if (!range) return [startDate, endDate];
+  const clamp = (d) => {
+    if (!d) return d;
+    if (range.min && d < range.min) return range.min;
+    if (range.max && d > range.max) return range.max;
+    return d;
+  };
+  let start = clamp(startDate);
+  let end = clamp(endDate);
+  // Wholly outside the coverage (e.g. a last-365-days range on CERRA, which
+  // ends 2021-06-30): clamping alone collapses both ends onto the same day, so
+  // rebuild a one-year window anchored to the dataset's latest data instead.
+  if (start === end && startDate !== endDate) {
+    end = range.max ?? end;
+    const back = new Date(end);
+    back.setFullYear(back.getFullYear() - 1);
+    const backISO = back.toISOString().split('T')[0];
+    start = range.min && backISO < range.min ? range.min : backISO;
+  }
+  return [start, end];
+}
+
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
-  const [mode, setMode] = useState('forecast');
-  const [resolution, setResolution] = useState('hourly');
-  const [activeLocation, setActiveLocation] = useState(null);
-  const [model, setModel] = useState(MODELS.forecast[0].id);
-  const [selectedVars, setSelectedVars] = useState(['temperature_2m', 'precipitation']);
+  const [mode, setMode] = useState(INITIAL_MODE);
+  const [resolution, setResolution] = useState(INITIAL_RESOLUTION);
+  const [activeLocation, setActiveLocation] = useState(
+    SHARED.lat != null && SHARED.lon != null
+      ? { lat: SHARED.lat, lon: SHARED.lon, name: `${SHARED.lat.toFixed(4)}, ${SHARED.lon.toFixed(4)}` }
+      : null,
+  );
+  const [model, setModel] = useState(MODELS[INITIAL_MODE]?.[0]?.id ?? MODELS.forecast[0].id);
+  const [selectedVars, setSelectedVars] = useState(
+    DEFAULT_VARIABLES[INITIAL_MODE]?.[INITIAL_RESOLUTION] ?? ['temperature_2m', 'precipitation'],
+  );
 
-  const constraints = getDateConstraints('forecast');
-  const [startDate, setStartDate] = useState(constraints.defaultStart);
-  const [endDate, setEndDate] = useState(constraints.defaultEnd);
+  const [startDate, setStartDate] = useState(SHARED.startDate || INITIAL_CONSTRAINTS.defaultStart);
+  const [endDate, setEndDate] = useState(SHARED.endDate || INITIAL_CONSTRAINTS.defaultEnd);
 
   // CCKP projection state
   const [cckpData, setCCKPData] = useState(null);
@@ -33,30 +74,37 @@ export default function App() {
   const { data, loading, error, fromCache, fetch: fetchWeather } = useWeatherData();
   const { locations: csvLocations, parseError, skipped, importCSV, clearLocations } = useCSVLocations();
 
-  useEffect(() => {
-    const params = readShareParams();
-    if (params.mode) setMode(params.mode);
-    if (params.lat && params.lon) {
-      setActiveLocation({ lat: params.lat, lon: params.lon, name: `${params.lat.toFixed(4)}, ${params.lon.toFixed(4)}` });
-    }
-    if (params.startDate) setStartDate(params.startDate);
-    if (params.endDate) setEndDate(params.endDate);
-  }, []);
-
   function handleModeChange(newMode) {
     setMode(newMode);
     if (newMode === 'projection') return; // CCKP mode — no weather model/dates needed
     const newModel = MODELS[newMode][0].id;
     setModel(newModel);
     const c = getDateConstraints(newMode);
-    setStartDate(c.defaultStart);
-    setEndDate(c.defaultEnd);
+    // The mode-level defaults are a superset of any one model's coverage, so
+    // narrow them to the model actually being selected.
+    const [start, end] = clampToModel(newMode, newModel, c.defaultStart, c.defaultEnd);
+    setStartDate(start);
+    setEndDate(end);
     const defaults = DEFAULT_VARIABLES[newMode];
     const isDailyOnly = newMode === 'climate' || newMode === 'flood';
     const res = isDailyOnly ? 'daily' : resolution;
     if (isDailyOnly) setResolution('daily');
     else if (newMode === 'marine') setResolution('hourly');
     setSelectedVars(defaults[res] || defaults.hourly || defaults.daily || []);
+  }
+
+  // Switching model can strand the dates outside the new dataset's coverage.
+  // Open-Meteo answers those with HTTP 200 and an array of nulls rather than an
+  // error, so clamp instead of letting it silently return an empty result.
+  function handleModelChange(newModel) {
+    setModel(newModel);
+    const [nextStart, nextEnd] = clampToModel(mode, newModel, startDate, endDate);
+    if (nextStart !== startDate) setStartDate(nextStart);
+    if (nextEnd !== endDate) setEndDate(nextEnd);
+    // Drop variables the new model answers with nulls.
+    const res = (mode === 'climate' || mode === 'flood') ? 'daily' : resolution;
+    const dead = getUnsupportedVars(mode, newModel, res, selectedVars);
+    if (dead.length) setSelectedVars(selectedVars.filter((v) => !dead.includes(v)));
   }
 
   function handleResolutionChange(res) {
@@ -156,7 +204,7 @@ export default function App() {
         startDate={startDate} onStartDateChange={setStartDate}
         endDate={endDate} onEndDateChange={setEndDate}
         selectedVars={selectedVars} onVarsChange={setSelectedVars}
-        model={model} onModelChange={setModel}
+        model={model} onModelChange={handleModelChange}
         csvLocations={csvLocations} csvError={parseError} csvSkipped={skipped}
         onCSVImport={importCSV} onCSVClear={clearLocations}
         onLocationSearch={handleLocationSearch}
@@ -243,7 +291,11 @@ export default function App() {
               error={error}
               fromCache={fromCache}
               mode={mode}
+              model={model}
               selectedVars={selectedVars}
+              location={activeLocation}
+              startDate={startDate}
+              endDate={endDate}
               resolution={(mode === 'climate' || mode === 'flood') ? 'daily' : resolution}
               cckpData={cckpData}
               cckpLoading={cckpLoading}
