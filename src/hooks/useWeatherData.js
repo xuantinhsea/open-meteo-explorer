@@ -5,6 +5,7 @@ import { fetchEnsemble } from '../api/ensemble';
 import { fetchClimate } from '../api/climate';
 import { fetchMarine } from '../api/marine';
 import { fetchFlood } from '../api/flood';
+import { normalizeCoords } from '../utils/geo';
 
 const FETCHERS = {
   forecast: fetchForecast,
@@ -30,9 +31,14 @@ export function useWeatherData() {
   const [error, setError] = useState(null);
   const [fromCache, setFromCache] = useState(false);
 
-  const fetch = useCallback(async (params) => {
-    const { mode, lat, lon } = params;
-    if (!lat || !lon) return;
+  const fetch = useCallback(async (rawParams) => {
+    // Last line of defence. Every UI path normalises already, but a coordinate
+    // outside ±180 makes the API reject the whole request, so re-wrap here
+    // rather than trust that every present and future caller remembered.
+    const coords = normalizeCoords(rawParams.lat, rawParams.lon);
+    if (!coords) return;
+    const params = { ...rawParams, ...coords };
+    const { mode } = params;
 
     const key = cacheKey(params);
 

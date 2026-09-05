@@ -7,6 +7,12 @@ export default function MapPanel({ activeLocation, csvLocations, onMapClick, onC
       <MapContainer
         center={[20, 0]}
         zoom={2}
+        // Clicks are wrapped back into range, so without this the map would pan
+        // right across the world to reach the "real" copy of the point the user
+        // just clicked. worldCopyJump keeps the view on the copy they're on.
+        worldCopyJump
+        minZoom={2}
+        maxBoundsViscosity={1}
         className="h-full w-full"
         style={{ minHeight: 300 }}
       >

@@ -11,6 +11,7 @@ import { getDateConstraints } from './utils/dateUtils';
 import { fetchCCKPScenario, fetchCCKPHistorical } from './api/worldbank';
 import { CCKP_SCENARIOS, CCKP_VARIABLES } from './utils/cckpConfig';
 import { buildShareUrl, readShareParams } from './utils/shareUrl';
+import { normalizeCoords } from './utils/geo';
 
 // A share link is fixed for the lifetime of the page load, so resolve it once
 // here and seed the initial state from it. Restoring it from an effect instead
@@ -113,20 +114,25 @@ export default function App() {
     setSelectedVars(defaults[res] || []);
   }
 
-  function setLocation(lat, lon, name = '') {
-    setActiveLocation({ lat, lon, name });
-  }
-
+  // Coordinates arrive from map clicks, search results, CSV pins and share
+  // links. Each path wraps them into range before they become the active
+  // location, so no caller can hand the APIs a longitude they reject.
   const handleMapClick = useCallback((lat, lon) => {
-    setLocation(lat, lon, `${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+    const c = normalizeCoords(lat, lon);
+    if (!c) return;
+    setActiveLocation({ ...c, name: `${c.lat.toFixed(4)}, ${c.lon.toFixed(4)}` });
   }, []);
 
   const handleCSVPinClick = useCallback((loc) => {
-    setActiveLocation(loc);
+    const c = normalizeCoords(loc.lat, loc.lon);
+    if (!c) return;
+    setActiveLocation({ ...loc, ...c });
   }, []);
 
   const handleLocationSearch = useCallback((loc) => {
-    setActiveLocation({ lat: loc.lat, lon: loc.lon, name: loc.name });
+    const c = normalizeCoords(loc.lat, loc.lon);
+    if (!c) return;
+    setActiveLocation({ ...c, name: loc.name });
   }, []);
 
   function handleFetch() {

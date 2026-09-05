@@ -29,7 +29,15 @@ const activeIcon = new L.Icon({
 });
 
 function ClickHandler({ onMapClick }) {
-  useMapEvents({ click: (e) => onMapClick(e.latlng.lat, e.latlng.lng) });
+  // latlng.wrap() folds a click on a repeated world copy back onto the real
+  // one, so panning past the antimeridian can't produce a longitude like
+  // -220.05615 that the weather APIs reject.
+  useMapEvents({
+    click: (e) => {
+      const { lat, lng } = e.latlng.wrap();
+      onMapClick(lat, lng);
+    },
+  });
   return null;
 }
 
