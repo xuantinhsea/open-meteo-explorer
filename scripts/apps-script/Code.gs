@@ -7,7 +7,7 @@
  */
 
 // Where the notification email goes.
-var NOTIFY_EMAIL = 'mizukun04@gmail.com';
+var NOTIFY_EMAIL = 'xuantinhsea@gmail.com';
 
 // Send at most one email per this many minutes per person, so a user exporting
 // CSV + Excel + TXT in a row doesn't produce three near-identical emails. Every

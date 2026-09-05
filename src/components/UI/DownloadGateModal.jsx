@@ -101,7 +101,7 @@ export default function DownloadGateModal({ format, onConfirm, onCancel }) {
 
           <p className="text-[11px] text-slate-400 leading-relaxed">
             Your details are recorded for usage reporting only and are never sold or shared.
-            Contact <a className="underline" href="mailto:mizukun04@gmail.com">mizukun04@gmail.com</a> to
+            Contact <a className="underline" href="mailto:xuantinhsea@gmail.com">xuantinhsea@gmail.com</a> to
             have your record removed.
           </p>
         </div>
