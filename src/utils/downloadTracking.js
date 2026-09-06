@@ -4,7 +4,24 @@
 // appends a row to a Google Sheet and emails the site owner. See
 // scripts/apps-script/README.md for the one-time setup.
 
-const ENDPOINT = import.meta.env.VITE_DOWNLOAD_LOG_ENDPOINT ?? '';
+// The site is deployed to more than one host (GitHub Pages, Vercel), and each
+// keeps its own environment store. Relying on an env var alone means every new
+// host silently ships with the gate disabled — downloads still work, so nothing
+// looks broken, and no contacts are captured. Committing the endpoint as a
+// default makes every target work with no configuration.
+//
+// This is not a credential. It is already readable in the public JS bundle of
+// every deployed site, and it grants nothing beyond appending a row to the
+// sheet. VITE_DOWNLOAD_LOG_ENDPOINT still overrides it — set that to a
+// different script for a staging log, or to 'off' to disable capture entirely.
+const DEFAULT_ENDPOINT =
+  'https://script.google.com/macros/s/AKfycbzNLkQqSeII6iP_fl5Ego4fcLeE5-ACRn0Hk5x7RkVRXKv8am0M-N0AHfUylgZqPP0m/exec';
+
+const CONFIGURED = import.meta.env.VITE_DOWNLOAD_LOG_ENDPOINT?.trim();
+// An explicit 'off' (or 'none'/'false') is the escape hatch for a build that
+// should not log at all — an empty env var falls through to the default.
+const DISABLED = ['off', 'none', 'false', '0'].includes((CONFIGURED ?? '').toLowerCase());
+const ENDPOINT = DISABLED ? '' : (CONFIGURED || DEFAULT_ENDPOINT);
 
 // Values persist across visits so returning users get a prefilled form...
 const PROFILE_KEY = 'ome_contact_profile';

@@ -162,18 +162,21 @@ ENVIRONMENT VARIABLES
 Create a file named .env.local in the project root. Never commit this file.
 A template is provided in .env.example.
 
-  VITE_DOWNLOAD_LOG_ENDPOINT   Optional. Google Apps Script web-app URL that
-                                logs each data download to a Google Sheet and
-                                emails the site owner. Setup instructions:
-                                scripts/apps-script/README.md
-                                Leave it unset and the contact form is skipped
-                                — exports still work exactly as before.
+  VITE_DOWNLOAD_LOG_ENDPOINT   Optional override for the download logger. The
+                                live Apps Script URL is committed as a default
+                                in src/utils/downloadTracking.js, so no host
+                                needs configuring. Set this only to point a
+                                build at a different script, or to "off" to
+                                disable download capture for that build.
+                                Setup: scripts/apps-script/README.md
 
 All weather data (Open-Meteo APIs and World Bank CCKP) requires NO API key.
 
-For the GitHub Pages deploy, add VITE_DOWNLOAD_LOG_ENDPOINT as a repository
-secret under Settings → Secrets and variables → Actions. The workflow already
-passes it through to the build.
+Nothing needs to be configured on any host. The app is deployed to both
+GitHub Pages and Vercel; each keeps its own environment store, and relying on
+an env var meant a new host silently shipped with download capture disabled
+while downloads themselves carried on working. The committed default removes
+that failure mode.
 
 
 AVAILABLE SCRIPTS

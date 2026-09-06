@@ -36,15 +36,20 @@ Open that URL in a browser — you should see `{"ok":true,...}`.
 
 ## 4. Point the app at it
 
-Local development, in `.env.local` at the repo root:
+**Already done for the current script.** The live endpoint is committed as
+`DEFAULT_ENDPOINT` in [`src/utils/downloadTracking.js`](../../src/utils/downloadTracking.js),
+so every deploy target — GitHub Pages, Vercel, preview builds, local dev —
+logs downloads with no per-host configuration.
 
-```
-VITE_DOWNLOAD_LOG_ENDPOINT=https://script.google.com/macros/s/AKfycb.../exec
-```
+That is deliberate: the URL is not a credential (it is readable in the public
+JS bundle of every deployed site and grants nothing beyond appending a row to
+the sheet), and relying on an env var meant each new host silently shipped
+with capture disabled while downloads carried on working.
 
-For the GitHub Pages deploy, add it as a repository secret named
-`VITE_DOWNLOAD_LOG_ENDPOINT` (**Settings → Secrets and variables → Actions →
-New repository secret**). The workflow already passes it through to the build.
+Only if you replace the script with a different one: update `DEFAULT_ENDPOINT`
+to the new URL. To point a single build somewhere else without touching the
+code, set `VITE_DOWNLOAD_LOG_ENDPOINT` — it overrides the default. Setting it
+to `off` disables capture for that build.
 
 ## 5. Check it
 
