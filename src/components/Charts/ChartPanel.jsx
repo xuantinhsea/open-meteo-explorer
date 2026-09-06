@@ -12,7 +12,6 @@ import {
   MARINE_HEIGHT_IDS, MARINE_PERIOD_IDS, MARINE_DIRECTION_IDS, MARINE_OCEAN_IDS,
   findModel,
 } from '../../utils/variableConfig';
-import { exportCCKPCSV } from '../../utils/exportData';
 
 function downloadChart(chartRef, filename) {
   const url = chartRef.current?.toBase64Image?.();
@@ -173,14 +172,25 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
           </div>
         </div>
 
-        <div className="px-4 py-3 border-t border-slate-100 flex gap-2 justify-end">
-          <button
-            onClick={() => exportCCKPCSV(cckpData)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white text-xs text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            📄 Export CSV
-          </button>
-        </div>
+        <ExportBar
+          kind="projection"
+          payload={cckpData}
+          label="Export projection:"
+          meta={{
+            mode: 'projection',
+            model: 'CMIP6 ensemble (World Bank CCKP)',
+            locationName: cckpData.locationName || geocode,
+            latitude: null,
+            longitude: null,
+            startDate: String(historical?.years?.[0] ?? ''),
+            endDate: String(scenarioDatasets[0]?.years?.at(-1) ?? ''),
+            variables: [
+              cckpData.variable,
+              ...scenarioDatasets.map((s) => s.id),
+            ].filter(Boolean).join(', '),
+            rows: histYears + futureYears,
+          }}
+        />
       </div>
     );
   }
@@ -254,9 +264,16 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
           )}
         </div>
         <ExportBar
-          data={data} selectedVars={selectedVars}
-          mode={mode} model={model} location={location}
-          startDate={startDate} endDate={endDate}
+          payload={data}
+          meta={{
+            mode, model,
+            locationName: location?.name ?? null,
+            latitude: data?.latitude ?? null,
+            longitude: data?.longitude ?? null,
+            startDate, endDate,
+            variables: selectedVars.join(', '),
+            rows: data?.hourly?.time?.length ?? data?.daily?.time?.length ?? 0,
+          }}
         />
       </div>
     );
@@ -328,9 +345,16 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
           </div>
         </div>
         <ExportBar
-          data={data} selectedVars={selectedVars}
-          mode={mode} model={model} location={location}
-          startDate={startDate} endDate={endDate}
+          payload={data}
+          meta={{
+            mode, model,
+            locationName: location?.name ?? null,
+            latitude: data?.latitude ?? null,
+            longitude: data?.longitude ?? null,
+            startDate, endDate,
+            variables: selectedVars.join(', '),
+            rows: data?.hourly?.time?.length ?? data?.daily?.time?.length ?? 0,
+          }}
         />
       </div>
     );

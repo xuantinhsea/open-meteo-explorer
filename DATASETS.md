@@ -440,18 +440,22 @@ Marine results are split into four charts — wave heights, periods, directions 
 
 ## Export
 
-| Format | Contents |
-|---|---|
-| **CSV** | Flat time series: one row per timestep, one column per selected variable. |
-| **Excel (.xlsx)** | Two sheets — *Weather Data* with the values, *Metadata* with model, coordinates, elevation, timezone, row count and export timestamp. |
-| **TXT** | Fixed-width table with a metadata header, for printing or pasting into reports. |
-| **PNG** | Per-chart image export. |
+All four formats are available in **every mode**, including WB Projection.
+
+| Format | Weather modes | WB Projection |
+|---|---|---|
+| **CSV** | One row per timestep, one column per selected variable. | One row per year; `p10`/`median`/`p90` columns for the baseline and each scenario. Metadata in `#` comment lines. |
+| **Excel (.xlsx)** | Two sheets — *Weather Data* and *Metadata* (model, coordinates, elevation, timezone, row count). | Two sheets — *Projection* and *Metadata* (geocode, level, variable, unit, scenarios, baseline). |
+| **TXT** | Fixed-width table with a metadata header. | Same, with the projection metadata block. |
+| **PNG** | Per-chart image export. | Projection chart with its uncertainty bands. |
 
 SheetJS is loaded on demand when Excel is clicked, so the 429 kB library is not in the initial page load.
 
 ### Download contact capture
 
-Before the first CSV, Excel or TXT export of a session, a form collects **name, email, organisation and intended use**. Details are remembered for the session and prefilled on later visits.
+Before the first CSV, Excel or TXT export of a session — **in any mode** — a form collects **name, email, organisation and intended use**. Details are remembered for the session and prefilled on later visits.
+
+Every data export routes through one `ExportBar` component, so the gate cannot be bypassed by a download added elsewhere. PNG chart images are not gated: they are a picture of the chart, not the dataset.
 
 | Behaviour | Detail |
 |---|---|
