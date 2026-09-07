@@ -1,9 +1,26 @@
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { useEffect } from 'react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import LocationMarker from './LocationMarker';
 
-export default function MapPanel({ activeLocation, csvLocations, onMapClick, onCSVPinClick }) {
+// On mobile the map is hidden with display:none while the charts are shown.
+// Leaflet measures its container on creation and has no idea it was resized
+// while hidden, so it comes back with grey gaps and a wrong centre until it is
+// told to re-measure.
+function ResizeOnShow({ active }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!active) return;
+    // One frame after the container is displayed again, so it has real
+    // dimensions by the time Leaflet reads them.
+    const id = requestAnimationFrame(() => map.invalidateSize());
+    return () => cancelAnimationFrame(id);
+  }, [active, map]);
+  return null;
+}
+
+export default function MapPanel({ activeLocation, csvLocations, onMapClick, onCSVPinClick, active = true }) {
   return (
-    <div className="w-full h-full min-h-[300px]">
+    <div className="w-full h-full min-h-[240px]">
       <MapContainer
         center={[20, 0]}
         zoom={2}
@@ -14,12 +31,13 @@ export default function MapPanel({ activeLocation, csvLocations, onMapClick, onC
         minZoom={2}
         maxBoundsViscosity={1}
         className="h-full w-full"
-        style={{ minHeight: 300 }}
+        style={{ minHeight: 240 }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <ResizeOnShow active={active} />
         <LocationMarker
           activeLocation={activeLocation}
           csvLocations={csvLocations}

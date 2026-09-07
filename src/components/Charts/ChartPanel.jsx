@@ -477,10 +477,17 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
 
       {/* Export bar — always visible at the bottom */}
       <ExportBar
-          data={data} selectedVars={selectedVars}
-          mode={mode} model={model} location={location}
-          startDate={startDate} endDate={endDate}
-        />
+        payload={data}
+        meta={{
+          mode, model,
+          locationName: location?.name ?? null,
+          latitude: data?.latitude ?? null,
+          longitude: data?.longitude ?? null,
+          startDate, endDate,
+          variables: selectedVars.join(', '),
+          rows: data?.hourly?.time?.length ?? data?.daily?.time?.length ?? 0,
+        }}
+      />
     </div>
   );
 }

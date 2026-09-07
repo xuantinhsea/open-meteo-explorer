@@ -11,3 +11,21 @@
 .leaflet-pane { z-index: 1 !important; }
 .leaflet-control { z-index: 10 !important; }
 .leaflet-top, .leaflet-bottom { z-index: 10 !important; }
+
+/* Full-height app shell.
+   100vh on mobile is the LARGE viewport — the browser's URL bar and toolbar
+   overlay the bottom of it. Since the shell is also overflow-hidden, anything
+   in that strip (the export bar, the last chart) could never be scrolled to.
+   100dvh tracks the actually-visible area. The two declarations are ordered
+   @supports rather than two declarations on one rule: the CSS minifier
+   dedupes same-property declarations and silently drops the vh fallback.
+   This lives here rather than in a utility class because the cascade order
+   of Tailwind's generated utilities is not guaranteed. */
+.app-shell {
+  height: 100vh;
+}
+@supports (height: 100dvh) {
+  .app-shell {
+    height: 100dvh;
+  }
+}

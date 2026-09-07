@@ -52,6 +52,9 @@ function clampToModel(mode, modelId, startDate, endDate) {
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  // Which pane a phone is showing. Ignored from the md breakpoint up, where the
+  // map and charts sit side by side.
+  const [mobileView, setMobileView] = useState('map');
   const [mode, setMode] = useState(INITIAL_MODE);
   const [resolution, setResolution] = useState(INITIAL_RESOLUTION);
   const [activeLocation, setActiveLocation] = useState(
@@ -137,6 +140,10 @@ export default function App() {
 
   function handleFetch() {
     if (!activeLocation) return;
+    // On a phone the sidebar covers the screen and the charts are on the other
+    // pane, so a fetch would otherwise appear to do nothing.
+    setSidebarOpen(false);
+    setMobileView('charts');
     const isDailyOnly = mode === 'climate' || mode === 'flood';
     const hourly = (!isDailyOnly && resolution === 'hourly') ? selectedVars : [];
     const daily = (isDailyOnly || resolution === 'daily') ? selectedVars : [];
@@ -153,6 +160,8 @@ export default function App() {
   }
 
   async function handleCCKPFetch({ geocode, variable, scenarios, locationName, countryISO3, locationLevel }) {
+    setSidebarOpen(false);
+    setMobileView('charts');
     setCCKPLoading(true);
     setCCKPError(null);
     setCCKPData(null);
@@ -192,7 +201,7 @@ export default function App() {
   const isProjection = mode === 'projection';
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="app-shell flex bg-slate-50 overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -235,7 +244,24 @@ export default function App() {
             </svg>
           </button>
           <span className="text-sm font-semibold text-slate-700 hidden md:block">Open-Meteo Explorer</span>
-          <span className="text-sm font-semibold text-slate-700 md:hidden">Open-Meteo Explorer</span>
+
+          {/* Phone screens are too short to show a usable map and a readable
+              chart at once, so they get one at a time instead of a split. */}
+          <div className="flex md:hidden rounded-lg border border-slate-200 overflow-hidden shrink-0">
+            {[['map', 'Map'], ['charts', isProjection ? 'Projection' : 'Charts']].map(([v, text]) => (
+              <button
+                key={v}
+                onClick={() => setMobileView(v)}
+                aria-pressed={mobileView === v}
+                className={`px-3 py-1 text-xs font-medium transition-colors ${
+                  mobileView === v ? 'bg-slate-800 text-white' : 'bg-white text-slate-500'
+                }`}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => {
@@ -262,10 +288,10 @@ export default function App() {
           </div>
         </div>
 
-        {/* Map + Charts split */}
+        {/* Map + Charts — side by side from md up, one at a time below it */}
         <div className="flex-1 flex flex-col md:flex-row min-h-0">
           {/* Left panel: weather map OR projection map */}
-          <div className="h-[40vh] md:h-full md:w-1/2 border-b md:border-b-0 md:border-r border-slate-200 relative">
+          <div className={`${mobileView === 'map' ? '' : 'hidden'} md:block flex-1 min-h-0 md:flex-none md:h-full md:w-1/2 border-b md:border-b-0 md:border-r border-slate-200 relative`}>
             {isProjection ? (
               <ProjectionMap
                 countryISO3={cckpData?.countryISO3 ?? null}
@@ -279,6 +305,7 @@ export default function App() {
                   csvLocations={csvLocations}
                   onMapClick={handleMapClick}
                   onCSVPinClick={handleCSVPinClick}
+                  active={mobileView === 'map'}
                 />
                 {activeLocation && (
                   <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 shadow-sm z-10">
@@ -290,7 +317,7 @@ export default function App() {
           </div>
 
           {/* Charts */}
-          <div className="flex-1 md:w-1/2 overflow-hidden">
+          <div className={`${mobileView === 'charts' ? '' : 'hidden'} md:block flex-1 min-h-0 md:w-1/2 overflow-hidden`}>
             <ChartPanel
               data={data}
               loading={loading}

@@ -438,6 +438,8 @@ Each scenario is served as a **p10 / median / p90** band across the CMIP6 multi-
 
 Marine results are split into four charts — wave heights, periods, directions and ocean conditions — because those quantities share no sensible y-axis. Every chart exports to PNG individually.
 
+**On phones** the map and charts are shown one at a time, switched by a Map / Charts toggle in the header, rather than split down a screen too short for both. Fetching jumps straight to the charts. The layout is sized in `dvh`, so nothing hides behind the browser’s own toolbars.
+
 ## Export
 
 All four formats are available in **every mode**, including WB Projection.
