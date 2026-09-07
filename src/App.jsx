@@ -1,11 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Sidebar from './components/Sidebar/Sidebar';
 import MapPanel from './components/Map/MapPanel';
+import LocateButton from './components/Map/LocateButton';
 import ChartPanel from './components/Charts/ChartPanel';
 import ProjectionMap from './components/Charts/ProjectionMap';
 import AboutModal from './components/UI/AboutModal';
 import { useWeatherData } from './hooks/useWeatherData';
 import { useCSVLocations } from './hooks/useCSVLocations';
+import { useGeolocation } from './hooks/useGeolocation';
 import { MODES, MODELS, DEFAULT_VARIABLES, findModel, resolveModelDateRange, getUnsupportedVars } from './utils/variableConfig';
 import { getDateConstraints } from './utils/dateUtils';
 import { fetchCCKPScenario, fetchCCKPHistorical } from './api/worldbank';
@@ -137,6 +139,28 @@ export default function App() {
     if (!c) return;
     setActiveLocation({ ...c, name: loc.name });
   }, []);
+
+  const handleLocated = useCallback(({ lat, lon, accuracy }) => {
+    // Accuracy is a radius in metres. Desktop browsers geolocate by IP and can
+    // report kilometres, which is worth showing; a mocked or unknown value of 0
+    // is not, so it is left off rather than displayed as a misleading "±0 m".
+    const acc = Number.isFinite(accuracy) && accuracy > 0
+      ? ` (±${accuracy >= 1000 ? `${Math.round(accuracy / 100) / 10} km` : `${Math.round(accuracy)} m`})`
+      : '';
+    setActiveLocation({ lat, lon, name: `My location${acc}` });
+  }, []);
+
+  const { locate, autoLocate, locating, error: geoError, supported: geoSupported, clearError: clearGeoError } =
+    useGeolocation(handleLocated);
+
+  // Returning visitors who already granted permission get their position
+  // without being asked again. First-time visitors are not prompted on load —
+  // they tap "My location" when they want it. A share link's coordinates always
+  // win, since the sender chose them deliberately.
+  useEffect(() => {
+    if (SHARED.lat != null && SHARED.lon != null) return;
+    autoLocate();
+  }, [autoLocate]);
 
   function handleFetch() {
     if (!activeLocation) return;
@@ -307,8 +331,22 @@ export default function App() {
                   onCSVPinClick={handleCSVPinClick}
                   active={mobileView === 'map'}
                 />
+                <LocateButton onClick={locate} locating={locating} supported={geoSupported} />
+
+                {geoError && (
+                  <div className="absolute top-16 right-3 left-3 md:left-auto md:max-w-xs z-20 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 text-[11px] leading-snug shadow-sm">
+                    <div className="flex items-start gap-2">
+                      <span className="shrink-0">⚠</span>
+                      <span className="flex-1">{geoError}</span>
+                      <button onClick={clearGeoError} aria-label="Dismiss" className="shrink-0 text-amber-500 hover:text-amber-800">✕</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* bottom-7 on phones keeps this clear of Leaflet's attribution
+                    strip, which the full-width badge would otherwise cover. */}
                 {activeLocation && (
-                  <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 shadow-sm z-10">
+                  <div className="absolute bottom-7 md:bottom-3 left-3 right-3 md:right-auto bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 shadow-sm z-10 truncate">
                     📍 {activeLocation.name || `${activeLocation.lat.toFixed(4)}, ${activeLocation.lon.toFixed(4)}`}
                   </div>
                 )}

@@ -421,6 +421,7 @@ Each scenario is served as a **p10 / median / p90** band across the CMIP6 multi-
 | Method | Notes |
 |---|---|
 | Click the map | Leaflet map, click anywhere. Coordinates are wrapped into ±180 first, so panning past the antimeridian cannot produce a longitude the APIs reject. |
+| **My location** | Uses the device GPS — the point of it on a phone. Returning visitors who have already granted permission are located automatically on open; first-time visitors are never prompted unasked, they tap the button. A share link’s coordinates always win over GPS. |
 | Search by name | Open-Meteo geocoding with autocomplete; returns name, region, country, elevation and timezone. |
 | Import a CSV | Auto-detects `lat`/`latitude` and `lon`/`longitude`/`lng` columns, plus an optional name column. Rows outside valid ranges or with unparseable numbers are skipped and counted. Imported points appear as green pins; click one to load it. |
 | Share link | The link button copies a URL carrying mode, coordinates and date range. Opening it restores that state. |
