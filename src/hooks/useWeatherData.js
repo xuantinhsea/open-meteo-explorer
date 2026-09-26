@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { fetchArea } from '../api/area';
 import { fetchForecast } from '../api/forecast';
 import { fetchHistorical } from '../api/historical';
 import { fetchEnsemble } from '../api/ensemble';
@@ -30,6 +31,8 @@ export function useWeatherData() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fromCache, setFromCache] = useState(false);
+  const [progress, setProgress] = useState(null);
+  const abortRef = useRef(null);
 
   const fetch = useCallback(async (rawParams) => {
     // Last line of defence. Every UI path normalises already, but a coordinate
@@ -66,9 +69,52 @@ export function useWeatherData() {
     }
   }, []);
 
+  // Area-of-interest fetch: many sample points → area-weighted mean (see api/area.js)
+  const fetchAreaData = useCallback(async ({ mode, points, areaName, ...params }) => {
+    if (!points?.length) return;
+    const key = JSON.stringify({ area: points.map((p) => `${p.lat},${p.lon}`).join(';'), mode, ...params });
+
+    if (SESSION_CACHE.has(key)) {
+      setData(SESSION_CACHE.get(key));
+      setError(null);
+      setFromCache(true);
+      return;
+    }
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoading(true);
+    setError(null);
+    setFromCache(false);
+    setProgress({ done: 0, total: 1, waitingSec: 0 });
+
+    try {
+      const result = await fetchArea({
+        fetcher: FETCHERS[mode],
+        points,
+        params,
+        onProgress: setProgress,
+        signal: controller.signal,
+      });
+      const payload = { ...result, _mode: mode, _area: { ...result._area, name: areaName } };
+      SESSION_CACHE.set(key, payload);
+      setData(payload);
+    } catch (e) {
+      setError(e.name === 'AbortError' ? 'Area download cancelled.' : parseApiError(e.message));
+      setData(null);
+    } finally {
+      setLoading(false);
+      setProgress(null);
+      if (abortRef.current === controller) abortRef.current = null;
+    }
+  }, []);
+
+  const cancel = useCallback(() => abortRef.current?.abort(), []);
+
   const clearCache = useCallback(() => SESSION_CACHE.clear(), []);
 
-  return { data, loading, error, fromCache, fetch, clearCache };
+  return { data, loading, error, fromCache, progress, fetch, fetchArea: fetchAreaData, cancel, clearCache };
 }
 
 function parseApiError(msg) {

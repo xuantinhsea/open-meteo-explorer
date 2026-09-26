@@ -81,11 +81,35 @@ export default function AboutModal({ onClose }) {
             </ul>
           </section>
 
+          {/* Glossary */}
+          <section>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Glossary</h3>
+            <dl className="flex flex-col gap-2">
+              {[
+                ['Reanalysis', 'Past weather rebuilt by feeding historical observations (stations, satellites, balloons) into a modern weather model. Gives complete, gap-free gridded data.'],
+                ['ERA5', 'ECMWF’s global reanalysis: hourly, ~25 km, 1940 to ~5 days ago. The standard reference dataset for climate work.'],
+                ['ERA5-Land', 'A finer (~11 km) rerun of ERA5’s land-surface component. Only land variables (temperature, humidity, snow, soil); no precipitation, wind or radiation in Open-Meteo, and no data over the sea.'],
+                ['ERA5-Seamless', 'ERA5-Land where it has the variable, ERA5 for everything else — full variable set with the best available resolution. Recommended for historical data.'],
+                ['Seamless (forecast)', 'A blend that uses a high-resolution regional model inside its domain and a global model elsewhere, e.g. ICON-D2 → ICON-EU → ICON Global.'],
+                ['Best Match', 'Open-Meteo automatically chooses and combines the most suitable models for the location.'],
+                ['Ensemble / members', 'The same model run many times with slightly different starting conditions. Wide spread between members = uncertain forecast.'],
+                ['Grid spacing', 'Distance between model grid points. Values are averages over a grid cell, so small-scale features (valleys, coasts, convective storms) may be smoothed.'],
+                ['CMIP6 / HighResMIP', 'The international climate-model comparison project behind IPCC AR6; HighResMIP is its high-resolution (~25–50 km) subset used in Climate Change mode.'],
+                ['GloFAS', 'Copernicus Global Flood Awareness System — a hydrological model routing forecast rainfall into river discharge on a ~5 km river network.'],
+              ].map(([term, def]) => (
+                <div key={term}>
+                  <dt className="text-xs font-semibold text-slate-700">{term}</dt>
+                  <dd className="text-xs text-slate-500 leading-relaxed">{def}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
           {/* Tech Stack */}
           <section>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Built With</h3>
             <div className="flex flex-wrap gap-1.5">
-              {['React 18', 'Vite 5', 'Tailwind CSS v4', 'Chart.js', 'Leaflet', 'Google Apps Script'].map((t) => (
+              {['React 18', 'Vite 5', 'Tailwind CSS v4', 'Chart.js', 'Leaflet', 'shpjs', 'Google Apps Script'].map((t) => (
                 <span key={t} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] rounded-full border border-slate-200">
                   {t}
                 </span>

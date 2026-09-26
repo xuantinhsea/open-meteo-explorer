@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import LocationMarker from './LocationMarker';
+import AreaLayer from './AreaLayer';
+
+const noop = () => {};
 
 // On mobile the map is hidden with display:none while the charts are shown.
 // Leaflet measures its container on creation and has no idea it was resized
@@ -18,7 +21,8 @@ function ResizeOnShow({ active }) {
   return null;
 }
 
-export default function MapPanel({ activeLocation, csvLocations, onMapClick, onCSVPinClick, active = true }) {
+export default function MapPanel({ activeLocation, csvLocations, onMapClick, onCSVPinClick, active = true, area }) {
+  const areaMode = !!area;
   return (
     <div className="w-full h-full min-h-[240px]">
       <MapContainer
@@ -32,6 +36,7 @@ export default function MapPanel({ activeLocation, csvLocations, onMapClick, onC
         maxBoundsViscosity={1}
         className="h-full w-full"
         style={{ minHeight: 240 }}
+        preferCanvas
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -39,11 +44,12 @@ export default function MapPanel({ activeLocation, csvLocations, onMapClick, onC
         />
         <ResizeOnShow active={active} />
         <LocationMarker
-          activeLocation={activeLocation}
-          csvLocations={csvLocations}
-          onMapClick={onMapClick}
+          activeLocation={areaMode ? null : activeLocation}
+          csvLocations={areaMode ? [] : csvLocations}
+          onMapClick={areaMode ? noop : onMapClick}
           onCSVPinClick={onCSVPinClick}
         />
+        {areaMode && <AreaLayer {...area} />}
       </MapContainer>
     </div>
   );

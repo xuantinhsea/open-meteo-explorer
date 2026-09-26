@@ -22,6 +22,11 @@ function downloadChart(chartRef, filename) {
   a.click();
 }
 
+// Open-Meteo returns an all-null array when a model does not provide a variable
+function hasValues(values) {
+  return Array.isArray(values) && values.some((v) => v !== null && v !== undefined);
+}
+
 function getTimeKey(data) {
   if (data.hourly?.time) return { times: data.hourly.time, key: 'hourly' };
   if (data.daily?.time) return { times: data.daily.time, key: 'daily' };
@@ -218,7 +223,7 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
         id,
         label: id.replace(/_/g, ' '),
         values: mStore?.[id] || [],
-      })).filter((ds) => ds.values.length > 0);
+      })).filter((ds) => hasValues(ds.values));
     }
 
     return (
@@ -232,9 +237,7 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
               {fromCache && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-slate-100 text-slate-500 border-slate-200">⚡ cached</span>
               )}
-              {data.latitude && (
-                <span className="text-xs text-slate-400">{Number(data.latitude).toFixed(3)}, {Number(data.longitude).toFixed(3)}</span>
-              )}
+              <LocationLabel data={data} />
             </div>
             <span className="text-xs text-slate-400">{mTimes.length} time points</span>
           </div>
@@ -264,10 +267,10 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
           )}
         </div>
         <ExportBar
-          payload={data}
+          payload={data} selectedVars={selectedVars}
           meta={{
             mode, model,
-            locationName: location?.name ?? null,
+            locationName: data?._area?.name ?? location?.name ?? null,
             latitude: data?.latitude ?? null,
             longitude: data?.longitude ?? null,
             startDate, endDate,
@@ -302,7 +305,7 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
         id,
         label: id.replace(/_/g, ' '),
         values: fStore[id] || [],
-      })).filter((ds) => ds.values.length > 0);
+      })).filter((ds) => hasValues(ds.values));
     }
 
     return (
@@ -345,10 +348,10 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
           </div>
         </div>
         <ExportBar
-          payload={data}
+          payload={data} selectedVars={selectedVars}
           meta={{
             mode, model,
-            locationName: location?.name ?? null,
+            locationName: data?._area?.name ?? location?.name ?? null,
             latitude: data?.latitude ?? null,
             longitude: data?.longitude ?? null,
             startDate, endDate,
@@ -387,10 +390,13 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
       id,
       label: id.replace(/_/g, ' '),
       values: dataStore?.[id] || [],
-    })).filter((ds) => ds.values.length > 0);
+    })).filter((ds) => hasValues(ds.values));
   }
 
   const isEnsemble = mode === 'ensemble';
+  const tempDatasets   = makeDatasets(tempVars);
+  const precipDatasets = makeDatasets(precipVars);
+  const otherDatasets  = makeDatasets(otherVars);
 
   return (
     <div className="flex flex-col h-full">
@@ -407,17 +413,13 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
                 ⚡ cached
               </span>
             )}
-            {data.latitude && (
-              <span className="text-xs text-slate-400">
-                {Number(data.latitude).toFixed(3)}, {Number(data.longitude).toFixed(3)}
-              </span>
-            )}
+            <LocationLabel data={data} />
           </div>
           <span className="text-xs text-slate-400">{times.length} time points</span>
         </div>
 
         {/* Temperature Chart */}
-        {tempVars.length > 0 && (
+        {(isEnsemble ? tempVars.length > 0 : tempDatasets.length > 0) && (
           <ChartCard
             title="Temperature"
             onExport={() => downloadChart(tempRef, 'temperature.png')}
@@ -435,7 +437,7 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
               <TemperatureChart
                 chartRef={tempRef}
                 labels={times}
-                datasets={makeDatasets(tempVars)}
+                datasets={tempDatasets}
                 unit="°C"
                 nowLabel={nowLabel}
               />
@@ -444,7 +446,7 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
         )}
 
         {/* Precipitation Chart */}
-        {precipVars.length > 0 && (
+        {precipDatasets.length > 0 && (
           <ChartCard
             title="Precipitation"
             onExport={() => downloadChart(precipRef, 'precipitation.png')}
@@ -452,18 +454,18 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
             <PrecipitationChart
               chartRef={precipRef}
               labels={times}
-              datasets={makeDatasets(precipVars)}
+              datasets={precipDatasets}
               nowLabel={nowLabel}
             />
           </ChartCard>
         )}
 
         {/* Other variables as line charts */}
-        {otherVars.length > 0 && (
+        {otherDatasets.length > 0 && (
           <ChartCard title="Other Variables" onExport={() => {}}>
             <TemperatureChart
               labels={times}
-              datasets={makeDatasets(otherVars)}
+              datasets={otherDatasets}
               unit=""
               nowLabel={nowLabel}
             />
@@ -477,10 +479,10 @@ export default function ChartPanel({ data, loading, error, fromCache, mode, mode
 
       {/* Export bar — always visible at the bottom */}
       <ExportBar
-        payload={data}
+        payload={data} selectedVars={selectedVars}
         meta={{
           mode, model,
-          locationName: location?.name ?? null,
+          locationName: data?._area?.name ?? location?.name ?? null,
           latitude: data?.latitude ?? null,
           longitude: data?.longitude ?? null,
           startDate, endDate,
@@ -510,6 +512,26 @@ function EmptyDataNotice({ vars, allEmpty }) {
         Check the <strong>Data Availability</strong> box under the model picker.
       </p>
     </div>
+  );
+}
+
+function LocationLabel({ data }) {
+  const area = data._area;
+  if (area) {
+    return (
+      <span
+        className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-blue-50 text-blue-700 border-blue-200"
+        title={`Area-weighted mean of ${area.cells.length} model grid cells (${area.nSamples} sample points)`}
+      >
+        ⬠ {area.name || 'Area'} · mean of {area.cells.length} cell{area.cells.length !== 1 ? 's' : ''}
+      </span>
+    );
+  }
+  if (!data.latitude) return null;
+  return (
+    <span className="text-xs text-slate-400">
+      {Number(data.latitude).toFixed(3)}, {Number(data.longitude).toFixed(3)}
+    </span>
   );
 }
 

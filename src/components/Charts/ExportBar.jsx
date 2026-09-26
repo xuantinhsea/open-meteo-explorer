@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { exportCSV, exportTXT, exportExcel, exportCCKPCSV, exportCCKPTXT, exportCCKPExcel } from '../../utils/exportData';
+import {
+  exportCSV, exportTXT, exportExcel, exportCCKPCSV, exportCCKPTXT, exportCCKPExcel,
+  exportAreaCellsCSV, exportAreaCellsExcel,
+} from '../../utils/exportData';
 import DownloadGateModal from '../UI/DownloadGateModal';
 import {
   getSessionProfile, saveProfile, reportDownload, isTrackingConfigured,
@@ -12,6 +15,8 @@ const STYLES = {
   CSV:   { icon: '📄', cls: 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300' },
   TXT:   { icon: '📝', cls: 'hover:bg-sky-50 hover:text-sky-700 hover:border-sky-300' },
   Excel: { icon: '📊', cls: 'hover:bg-green-50 hover:text-green-700 hover:border-green-300' },
+  'Cells CSV':   { icon: '🗺️', cls: 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300' },
+  'Cells Excel': { icon: '🗺️', cls: 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300' },
 };
 
 const EXPORTERS = {
@@ -27,7 +32,13 @@ const EXPORTERS = {
   ],
 };
 
-export default function ExportBar({ kind = 'weather', payload, meta, label = 'Export data:' }) {
+// Extra buttons for area-of-interest results: every grid cell, not just the mean
+const AREA_EXPORTERS = [
+  { label: 'Cells CSV',   title: 'Every grid cell inside the area, long format: time, cell, lat, lon, variables (.csv)', fn: exportAreaCellsCSV },
+  { label: 'Cells Excel', title: 'Every grid cell inside the area: one sheet per variable (time × cells) plus a cell list (.xlsx)', fn: exportAreaCellsExcel },
+];
+
+export default function ExportBar({ kind = 'weather', payload, selectedVars = [], meta, label = 'Export data:' }) {
   // Which format the user asked for while the gate is open, or null when closed.
   const [pending, setPending] = useState(null);
   // Label of the export currently running. Excel loads SheetJS on demand, so it
@@ -37,12 +48,14 @@ export default function ExportBar({ kind = 'weather', payload, meta, label = 'Ex
 
   if (!payload) return null;
   const buttons = EXPORTERS[kind] ?? EXPORTERS.weather;
+  const areaButtons = kind === 'weather' && payload._area ? AREA_EXPORTERS : [];
 
   async function runExport(button, profile) {
     setBusy(button.label);
     setFailed(null);
     try {
-      await button.fn(payload);
+      // Weather exporters need the selected variables; CCKP ones ignore the extra argument
+      await button.fn(payload, selectedVars);
     } catch {
       // Realistically only the dynamic SheetJS import can fail here, and only
       // when the network drops between page load and clicking Excel.
@@ -79,22 +92,32 @@ export default function ExportBar({ kind = 'weather', payload, meta, label = 'Ex
     if (button) runExport(button, profile);
   }
 
+  function renderButton(button) {
+    return (
+      <button
+        key={button.label}
+        title={button.title}
+        disabled={busy !== null}
+        onClick={() => handleClick(button)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-md text-slate-600 bg-white transition-colors disabled:opacity-50 disabled:cursor-wait ${STYLES[button.label].cls}`}
+      >
+        <span>{busy === button.label ? '⏳' : STYLES[button.label].icon}</span>
+        {busy === button.label ? 'Preparing…' : button.label}
+      </button>
+    );
+  }
+
   return (
     <>
       <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex-wrap">
-        <span className="text-xs text-slate-400 mr-1">{label}</span>
-        {buttons.map((button) => (
-          <button
-            key={button.label}
-            title={button.title}
-            disabled={busy !== null}
-            onClick={() => handleClick(button)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-md text-slate-600 bg-white transition-colors disabled:opacity-50 disabled:cursor-wait ${STYLES[button.label].cls}`}
-          >
-            <span>{busy === button.label ? '⏳' : STYLES[button.label].icon}</span>
-            {busy === button.label ? 'Preparing…' : button.label}
-          </button>
-        ))}
+        <span className="text-xs text-slate-400 mr-1">{areaButtons.length ? 'Area mean:' : label}</span>
+        {buttons.map(renderButton)}
+        {areaButtons.length > 0 && (
+          <>
+            <span className="text-xs text-slate-400 ml-2 mr-1">Per cell:</span>
+            {areaButtons.map(renderButton)}
+          </>
+        )}
         {failed && (
           <span className="text-xs text-rose-600">
             {failed} export failed to load — check your connection and retry.

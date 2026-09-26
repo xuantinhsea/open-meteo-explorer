@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import Sidebar from './components/Sidebar/Sidebar';
 import MapPanel from './components/Map/MapPanel';
 import LocateButton from './components/Map/LocateButton';
@@ -8,7 +8,11 @@ import AboutModal from './components/UI/AboutModal';
 import { useWeatherData } from './hooks/useWeatherData';
 import { useCSVLocations } from './hooks/useCSVLocations';
 import { useGeolocation } from './hooks/useGeolocation';
-import { MODES, MODELS, DEFAULT_VARIABLES, findModel, resolveModelDateRange, getUnsupportedVars } from './utils/variableConfig';
+import { useAreaOfInterest } from './hooks/useAreaOfInterest';
+import { AREA_MODES, QUOTA, samplePoints, defaultSpacingKm, callWeightPerLocation } from './utils/aoi';
+import {
+  MODES, MODELS, DEFAULT_VARIABLES, findModel, resolveModelDateRange, getUnsupportedVars, isVarSupported,
+} from './utils/variableConfig';
 import { getDateConstraints } from './utils/dateUtils';
 import { fetchCCKPScenario, fetchCCKPHistorical } from './api/worldbank';
 import { CCKP_SCENARIOS, CCKP_VARIABLES } from './utils/cckpConfig';
@@ -77,11 +81,45 @@ export default function App() {
   const [cckpLoading, setCCKPLoading] = useState(false);
   const [cckpError, setCCKPError] = useState(null);
 
-  const { data, loading, error, fromCache, fetch: fetchWeather } = useWeatherData();
+  const { data, loading, error, fromCache, progress, fetch: fetchWeather, fetchArea, cancel } = useWeatherData();
   const { locations: csvLocations, parseError, skipped, importCSV, clearLocations } = useCSVLocations();
+
+  // Area of interest (polygon) state
+  const aoi = useAreaOfInterest();
+  const [locMode, setLocMode] = useState('point');
+  const [spacingOverride, setSpacingOverride] = useState(null);
+  const isArea = locMode === 'area' && AREA_MODES.has(mode);
+
+  const isDailyOnly = mode === 'climate' || mode === 'flood';
+  const fetchRes = isDailyOnly ? 'daily' : resolution;
+  const modelMeta = useMemo(() => findModel(mode, model), [mode, model]);
+  const fetchVars = useMemo(
+    () => selectedVars.filter((id) => isVarSupported(mode, model, fetchRes, id)),
+    [selectedVars, mode, model, fetchRes],
+  );
+
+  const autoSpacingKm = defaultSpacingKm(modelMeta);
+  const spacingKm = spacingOverride ?? autoSpacingKm;
+  const sampling = useMemo(() => samplePoints(aoi.selectedPolygons, spacingKm), [aoi.selectedPolygons, spacingKm]);
+  const areaEstimate = useMemo(
+    () => ({ calls: sampling.points.length * callWeightPerLocation(fetchVars.length, startDate, endDate) }),
+    [sampling, fetchVars.length, startDate, endDate],
+  );
+  const areaBlockReason = !aoi.features.length ? 'Load a boundary file or draw an area'
+    : sampling.tooMany ? 'Too many sample points — increase the sampling distance'
+    : !fetchVars.length ? 'Select at least one variable'
+    : areaEstimate.calls > QUOTA.perHour ? 'Request too large for the free API quota'
+    : null;
+
+  const { setDrawMode } = aoi;
+  const cancelDraw = useCallback(() => setDrawMode(null), [setDrawMode]);
 
   function handleModeChange(newMode) {
     setMode(newMode);
+    if (!AREA_MODES.has(newMode)) {
+      setLocMode('point');
+      aoi.setDrawMode(null);
+    }
     if (newMode === 'projection') return; // CCKP mode — no weather model/dates needed
     const newModel = MODELS[newMode][0].id;
     setModel(newModel);
@@ -163,14 +201,26 @@ export default function App() {
   }, [autoLocate]);
 
   function handleFetch() {
-    if (!activeLocation) return;
+    if (isArea ? areaBlockReason : !activeLocation) return;
     // On a phone the sidebar covers the screen and the charts are on the other
     // pane, so a fetch would otherwise appear to do nothing.
     setSidebarOpen(false);
     setMobileView('charts');
-    const isDailyOnly = mode === 'climate' || mode === 'flood';
-    const hourly = (!isDailyOnly && resolution === 'hourly') ? selectedVars : [];
-    const daily = (isDailyOnly || resolution === 'daily') ? selectedVars : [];
+    const hourly = fetchRes === 'hourly' ? fetchVars : [];
+    const daily = fetchRes === 'daily' ? fetchVars : [];
+    if (isArea) {
+      fetchArea({
+        mode,
+        points: sampling.points,
+        areaName: aoi.areaName,
+        hourly,
+        daily,
+        model,
+        startDate,
+        endDate,
+      });
+      return;
+    }
     fetchWeather({
       mode,
       lat: activeLocation.lat,
@@ -250,6 +300,19 @@ export default function App() {
         onFetch={handleFetch}
         onCCKPFetch={handleCCKPFetch}
         loading={isProjection ? cckpLoading : loading}
+        locMode={locMode}
+        onLocModeChange={(m) => { setLocMode(m); if (m === 'point') aoi.setDrawMode(null); }}
+        areaProps={{
+          aoi,
+          sampling,
+          spacingKm,
+          autoSpacingKm,
+          onSpacingChange: setSpacingOverride,
+          estimate: areaEstimate,
+        }}
+        areaBlockReason={areaBlockReason}
+        progress={progress}
+        onCancel={cancel}
       />
 
       {/* About modal */}
@@ -330,8 +393,17 @@ export default function App() {
                   onMapClick={handleMapClick}
                   onCSVPinClick={handleCSVPinClick}
                   active={mobileView === 'map'}
+                  area={isArea ? {
+                    features: aoi.features,
+                    selected: aoi.selected,
+                    onSelectFeature: aoi.setSelected,
+                    points: sampling.points,
+                    drawMode: aoi.drawMode,
+                    onDrawComplete: aoi.setDrawnPolygon,
+                    onDrawCancel: cancelDraw,
+                  } : null}
                 />
-                <LocateButton onClick={locate} locating={locating} supported={geoSupported} />
+                {!isArea && <LocateButton onClick={locate} locating={locating} supported={geoSupported} />}
 
                 {geoError && (
                   <div className="absolute top-16 right-3 left-3 md:left-auto md:max-w-xs z-20 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 text-[11px] leading-snug shadow-sm">
@@ -345,7 +417,12 @@ export default function App() {
 
                 {/* bottom-7 on phones keeps this clear of Leaflet's attribution
                     strip, which the full-width badge would otherwise cover. */}
-                {activeLocation && (
+                {isArea && aoi.areaName && (
+                  <div className="absolute bottom-7 md:bottom-3 left-3 right-3 md:right-auto bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 shadow-sm z-10 truncate">
+                    ⬠ {aoi.areaName} · {sampling.points.length} sample points
+                  </div>
+                )}
+                {!isArea && activeLocation && (
                   <div className="absolute bottom-7 md:bottom-3 left-3 right-3 md:right-auto bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 shadow-sm z-10 truncate">
                     📍 {activeLocation.name || `${activeLocation.lat.toFixed(4)}, ${activeLocation.lon.toFixed(4)}`}
                   </div>

@@ -11,21 +11,25 @@ const MODE_COLORS = {
 };
 
 export default function ModeSelector({ mode, onChange }) {
+  const description = MODES.find((m) => m.id === mode)?.description;
   return (
-    <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
-      {MODES.map((m) => (
-        <button
-          key={m.id}
-          onClick={() => onChange(m.id)}
-          className={`px-2 py-2 rounded-md border text-xs font-semibold transition-colors ${
-            mode === m.id
-              ? MODE_COLORS[m.id]
-              : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 bg-white'
-          }`}
-        >
-          {m.label}
-        </button>
-      ))}
+    <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
+        {MODES.map((m) => (
+          <button
+            key={m.id}
+            onClick={() => onChange(m.id)}
+            className={`px-2 py-2 rounded-md border text-xs font-semibold transition-colors ${
+              mode === m.id
+                ? MODE_COLORS[m.id]
+                : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 bg-white'
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+      {description && <p className="text-[11px] text-slate-500 leading-relaxed">{description}</p>}
     </div>
   );
 }

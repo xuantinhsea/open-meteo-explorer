@@ -168,11 +168,77 @@ function triggerDownload(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-function safeFilename(data, ext) {
+function safeFilename(data, ext, suffix = '') {
+  const mode = data?._mode || 'data';
+  if (data?._area) {
+    const name = String(data._area.name || 'area').replace(/[^\w.-]+/g, '_').slice(0, 40);
+    return `open-meteo_${mode}_${name}${suffix}.${ext}`;
+  }
   const lat = data?.latitude ? Number(data.latitude).toFixed(2) : 'loc';
   const lon = data?.longitude ? Number(data.longitude).toFixed(2) : '';
-  const mode = data?._mode || 'data';
-  return `open-meteo_${mode}_${lat}_${lon}.${ext}`;
+  return `open-meteo_${mode}_${lat}_${lon}${suffix}.${ext}`;
+}
+
+function areaMetaLines(data) {
+  const a = data?._area;
+  if (!a) return [];
+  return [
+    `Area: ${a.name || ''}  |  Area-weighted mean of ${a.cells.length} grid cells (${a.nSamples} sample points)`,
+  ];
+}
+
+// ─── Area of interest: per-cell exports ───────────────────────────────────────
+
+// Long format: one row per time step and grid cell
+export function exportAreaCellsCSV(data, selectedVars) {
+  const a = data?._area;
+  if (!a) return;
+  const times = data[a.timeKey]?.time || [];
+  const vars = selectedVars.filter((v) => a.cellData[v]);
+  const lines = [
+    `# Open-Meteo area export — ${a.name || ''} — ${a.cells.length} grid cells`,
+    `# weight = number of sample points that fell in the cell (use for area-weighted averaging)`,
+    ['time', 'cell_id', 'latitude', 'longitude', 'elevation', 'weight', ...vars].join(','),
+  ];
+  times.forEach((t, ti) => {
+    a.cells.forEach((c, ci) => {
+      const vals = vars.map((v) => {
+        const x = a.cellData[v][ci]?.[ti];
+        return x === null || x === undefined ? '' : x;
+      });
+      lines.push([t, c.id, c.lat, c.lon, c.elevation ?? '', c.weight, ...vals].join(','));
+    });
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  triggerDownload(blob, safeFilename(data, 'csv', '_cells'));
+}
+
+// Wide format: one sheet per variable (time × cells) plus a sheet describing the cells
+export async function exportAreaCellsExcel(data, selectedVars) {
+  const a = data?._area;
+  if (!a) return;
+  const times = data[a.timeKey]?.time || [];
+  const vars = selectedVars.filter((v) => a.cellData[v]);
+  const XLSX = await import('xlsx');
+  const wb = XLSX.utils.book_new();
+
+  const cellRows = [['cell_id', 'latitude', 'longitude', 'elevation', 'weight'],
+    ...a.cells.map((c) => [c.id, c.lat, c.lon, c.elevation ?? '', c.weight])];
+  const wsCells = XLSX.utils.aoa_to_sheet(cellRows);
+  wsCells['!cols'] = [{ wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }];
+  XLSX.utils.book_append_sheet(wb, wsCells, 'Cells');
+
+  const used = new Set(['Cells']);
+  vars.forEach((v) => {
+    const rows = [['time', ...a.cells.map((c) => c.id)],
+      ...times.map((t, ti) => [t, ...a.cells.map((_, ci) => a.cellData[v][ci]?.[ti] ?? '')])];
+    let name = v.slice(0, 31);
+    for (let i = 2; used.has(name); i++) name = `${v.slice(0, 28)}_${i}`;
+    used.add(name);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), name);
+  });
+
+  XLSX.writeFile(wb, safeFilename(data, 'xlsx', '_cells'));
 }
 
 export function exportCSV(data, selectedVars) {
@@ -193,7 +259,8 @@ export function exportTXT(data, selectedVars) {
 
   const meta = [
     'Open-Meteo Export',
-    `Mode: ${data?._mode || ''}  |  Lat: ${data?.latitude}  Lon: ${data?.longitude}`,
+    `Mode: ${data?._mode || ''}  |  Lat: ${data?.latitude}  Lon: ${data?.longitude}${data?._area ? ' (area centroid)' : ''}`,
+    ...areaMetaLines(data),
     `Timezone: ${data?.timezone || ''}`,
     `Generated: ${new Date().toISOString()}`,
     '',
@@ -221,6 +288,10 @@ export async function exportExcel(data, selectedVars) {
   const metaRows = [
     ['Field', 'Value'],
     ['Mode', data?._mode || ''],
+    ...(data?._area ? [
+      ['Area', data._area.name || ''],
+      ['Values', `Area-weighted mean of ${data._area.cells.length} grid cells (${data._area.nSamples} sample points); lat/lon below = centroid`],
+    ] : []),
     ['Latitude', data?.latitude],
     ['Longitude', data?.longitude],
     ['Elevation (m)', data?.elevation],

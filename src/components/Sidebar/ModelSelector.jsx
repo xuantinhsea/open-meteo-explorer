@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MODELS, resolveModelDateRange } from '../../utils/variableConfig';
+import { MODELS, findModel, resolveModelDateRange } from '../../utils/variableConfig';
 
 function InfoRow({ label, value }) {
   if (!value) return null;
@@ -18,7 +18,7 @@ function formatDate(iso) {
 
 export default function ModelSelector({ mode, model, onChange }) {
   const models = useMemo(() => MODELS[mode] || [], [mode]);
-  const selected = useMemo(() => models.find((m) => m.id === model), [models, model]);
+  const selected = useMemo(() => findModel(mode, model), [mode, model]);
   const dr = selected?.dataRange;
   const resolved = useMemo(() => dr ? resolveModelDateRange(dr) : null, [dr]);
 
@@ -33,6 +33,13 @@ export default function ModelSelector({ mode, model, onChange }) {
           <option key={m.id} value={m.id}>{m.label}</option>
         ))}
       </select>
+
+      {selected?.description && (
+        <div className="bg-blue-50/60 border border-blue-100 rounded-lg px-3 py-2.5 text-[11px] flex flex-col gap-1">
+          <p className="font-semibold text-blue-700/80 uppercase tracking-wider text-[10px]">About this model</p>
+          <p className="text-slate-600 leading-relaxed">{selected.description}</p>
+        </div>
+      )}
 
       {dr && resolved && (
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-[11px] flex flex-col gap-1">

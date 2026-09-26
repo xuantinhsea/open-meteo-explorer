@@ -10,8 +10,8 @@ Complete reference for **Open-Meteo Explorer** — every data mode, model, varia
 |  |  |
 |---|---|
 | Data modes | 7 |
-| Models / datasets | 56 |
-| Weather variables | 120 |
+| Models / datasets | 57 |
+| Weather variables | 128 |
 | Upstream APIs | 7 |
 | Earliest data | 1940-01-01 (ERA5) |
 | Latest data | 2100 (CCKP projections) |
@@ -113,8 +113,9 @@ Reanalysis — a physically consistent reconstruction of past weather, produced 
 | Model | API id | Coverage | Grid | Step | Region |
 |---|---|---|---|---|---|
 | ERA5 Seamless (recommended) | `era5_seamless` | 1940-01-01 → present − 6 d | 11–25 km | Hourly | Global |
+| Best Match (auto) | `best_match` | 1940-01-01 → present − 2 d | 9–25 km | Hourly | Global |
 | ERA5 (ECMWF) | `era5` | 1940-01-01 → present − 6 d | 25 km | Hourly | Global |
-| ERA5-Land (ECMWF) | `era5_land` | 1950-01-01 → present − 6 d | 11 km | Hourly | Global |
+| ERA5-Land (ECMWF) | `era5_land` | 1950-01-01 → present − 6 d | 11 km | Hourly | Global land |
 | ECMWF IFS | `ecmwf_ifs` | 2017-01-01 → present | 9 km | Hourly | Global |
 | ERA5 Ensemble | `era5_ensemble` | 1940-01-01 → present − 6 d | 55 km | 3-Hourly | Global |
 | CERRA (Europe) | `cerra` | 1985-01-01 → 2021-06-30 | 5 km | Hourly | Europe only |
@@ -123,12 +124,12 @@ Reanalysis — a physically consistent reconstruction of past weather, produced 
 
 These models carry only a **subset** of the variables below. The sidebar greys out the rest, because the API answers an unsupported variable with `HTTP 200` and an array of nulls rather than an error — without the guard it would look like an empty chart and export as empty columns.
 
-**`era5_land`** — ERA5-Land only carries temperature and humidity. Pick ERA5 Seamless for precipitation, wind, cloud or radiation at the same 11 km resolution.
+**`era5_land`** — ERA5-Land only carries temperature, humidity, snow and soil. Pick ERA5 Seamless for precipitation, wind, cloud or radiation at the same 11 km resolution.
 
 | Resolution | Available |
 |---|---|
-| Hourly | `temperature_2m`, `dew_point_2m`, `relative_humidity_2m` |
-| Daily | `temperature_2m_max`, `temperature_2m_min`, `temperature_2m_mean` |
+| Hourly | `temperature_2m`, `dew_point_2m`, `relative_humidity_2m`, `vapour_pressure_deficit`, `snow_depth`, `soil_temperature_0_to_7cm`, `soil_moisture_0_to_7cm` |
+| Daily | `temperature_2m_max`, `temperature_2m_min`, `temperature_2m_mean`, `dew_point_2m_mean`, `relative_humidity_2m_mean`, `snow_depth_max`, `soil_moisture_0_to_7cm_mean` |
 
 ### Hourly variables
 
@@ -144,6 +145,10 @@ These models carry only a **subset** of the variables below. The sidebar greys o
 |  | Wind Direction 10m | `wind_direction_10m` |
 |  | Wind Gusts 10m | `wind_gusts_10m` |
 | **Humidity** | Relative Humidity 2m | `relative_humidity_2m` |
+|  | Vapour Pressure Deficit | `vapour_pressure_deficit` |
+| **Soil & Snow** | Snow Depth | `snow_depth` |
+|  | Soil Temperature 0–7 cm | `soil_temperature_0_to_7cm` |
+|  | Soil Moisture 0–7 cm | `soil_moisture_0_to_7cm` |
 | **Other** | Cloud Cover | `cloud_cover` |
 |  | Sea Level Pressure | `pressure_msl` |
 |  | Solar Radiation | `shortwave_radiation` |
@@ -158,11 +163,15 @@ These models carry only a **subset** of the variables below. The sidebar greys o
 |  | Temperature Mean | `temperature_2m_mean` |
 |  | Apparent Temp Max | `apparent_temperature_max` |
 |  | Apparent Temp Min | `apparent_temperature_min` |
+|  | Dew Point Mean | `dew_point_2m_mean` |
 | **Precipitation** | Precipitation Sum | `precipitation_sum` |
 |  | Rain Sum | `rain_sum` |
 |  | Snowfall Sum | `snowfall_sum` |
 | **Wind** | Wind Speed Max | `wind_speed_10m_max` |
 |  | Wind Gusts Max | `wind_gusts_10m_max` |
+| **Humidity** | Relative Humidity Mean | `relative_humidity_2m_mean` |
+| **Soil & Snow** | Snow Depth Max | `snow_depth_max` |
+|  | Soil Moisture 0–7 cm Mean | `soil_moisture_0_to_7cm_mean` |
 | **Other** | Solar Radiation Sum | `shortwave_radiation_sum` |
 |  | Evapotranspiration | `et0_fao_evapotranspiration` |
 

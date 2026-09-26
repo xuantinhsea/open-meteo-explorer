@@ -1,11 +1,11 @@
 export const MODES = [
-  { id: 'forecast',   label: 'Forecast' },
-  { id: 'historical', label: 'Historical' },
-  { id: 'ensemble',   label: 'Ensemble' },
-  { id: 'climate',    label: 'Climate Change' },
-  { id: 'marine',     label: 'Marine' },
-  { id: 'flood',      label: 'Flood' },
-  { id: 'projection', label: 'WB Projection' },
+  { id: 'forecast',   label: 'Forecast',       description: 'Numerical weather prediction for the next days, plus the recent past (up to 92 days) from the same models.' },
+  { id: 'historical', label: 'Historical',     description: 'Reanalysis archive: past weather reconstructed by combining observations with a weather model, back to 1940.' },
+  { id: 'ensemble',   label: 'Ensemble',       description: 'Many slightly perturbed runs of one model. The spread between members shows how uncertain the forecast is.' },
+  { id: 'climate',    label: 'Climate Change', description: 'Daily output of high-resolution CMIP6 (HighResMIP) climate models, 1950–2050. Use for trends, not day-to-day weather.' },
+  { id: 'marine',     label: 'Marine',         description: 'Wave, swell, sea-surface temperature and ocean-current forecasts and archives for coastal and offshore points.' },
+  { id: 'flood',      label: 'Flood',          description: 'River discharge from the Global Flood Awareness System (GloFAS), snapped to the nearest 5 km river cell.' },
+  { id: 'projection', label: 'WB Projection',  description: 'World Bank Climate Change Knowledge Portal: CMIP6 multi-model projections aggregated by country or basin.' },
 ];
 
 export const VARIABLES = {
@@ -56,6 +56,10 @@ export const VARIABLES = {
       { id: 'wind_direction_10m', label: 'Wind Direction 10m', group: 'Wind' },
       { id: 'wind_gusts_10m', label: 'Wind Gusts 10m', group: 'Wind' },
       { id: 'relative_humidity_2m', label: 'Relative Humidity 2m', group: 'Humidity' },
+      { id: 'vapour_pressure_deficit', label: 'Vapour Pressure Deficit', group: 'Humidity' },
+      { id: 'snow_depth', label: 'Snow Depth', group: 'Soil & Snow' },
+      { id: 'soil_temperature_0_to_7cm', label: 'Soil Temperature 0–7 cm', group: 'Soil & Snow' },
+      { id: 'soil_moisture_0_to_7cm', label: 'Soil Moisture 0–7 cm', group: 'Soil & Snow' },
       { id: 'cloud_cover', label: 'Cloud Cover', group: 'Other' },
       { id: 'pressure_msl', label: 'Sea Level Pressure', group: 'Other' },
       { id: 'shortwave_radiation', label: 'Solar Radiation', group: 'Other' },
@@ -67,11 +71,15 @@ export const VARIABLES = {
       { id: 'temperature_2m_mean', label: 'Temperature Mean', group: 'Temperature' },
       { id: 'apparent_temperature_max', label: 'Apparent Temp Max', group: 'Temperature' },
       { id: 'apparent_temperature_min', label: 'Apparent Temp Min', group: 'Temperature' },
+      { id: 'dew_point_2m_mean', label: 'Dew Point Mean', group: 'Temperature' },
       { id: 'precipitation_sum', label: 'Precipitation Sum', group: 'Precipitation' },
       { id: 'rain_sum', label: 'Rain Sum', group: 'Precipitation' },
       { id: 'snowfall_sum', label: 'Snowfall Sum', group: 'Precipitation' },
       { id: 'wind_speed_10m_max', label: 'Wind Speed Max', group: 'Wind' },
       { id: 'wind_gusts_10m_max', label: 'Wind Gusts Max', group: 'Wind' },
+      { id: 'relative_humidity_2m_mean', label: 'Relative Humidity Mean', group: 'Humidity' },
+      { id: 'snow_depth_max', label: 'Snow Depth Max', group: 'Soil & Snow' },
+      { id: 'soil_moisture_0_to_7cm_mean', label: 'Soil Moisture 0–7 cm Mean', group: 'Soil & Snow' },
       { id: 'shortwave_radiation_sum', label: 'Solar Radiation Sum', group: 'Other' },
       { id: 'et0_fao_evapotranspiration', label: 'Evapotranspiration', group: 'Other' },
     ],
@@ -246,12 +254,16 @@ export const MODELS = {
       dataRange: { start: '1940-01-01', end: 'present', delayDays: 6, resolution: 'Hourly', resolutionKm: '11–25 km', region: 'Global', updateFreq: 'Daily' },
     },
     {
+      id: 'best_match', label: 'Best Match (auto)',
+      dataRange: { start: '1940-01-01', end: 'present', delayDays: 2, resolution: 'Hourly', resolutionKm: '9–25 km', region: 'Global', updateFreq: 'Daily' },
+    },
+    {
       id: 'era5', label: 'ERA5 (ECMWF)',
       dataRange: { start: '1940-01-01', end: 'present', delayDays: 6, resolution: 'Hourly', resolutionKm: '25 km', region: 'Global', updateFreq: 'Daily' },
     },
     {
       id: 'era5_land', label: 'ERA5-Land (ECMWF)',
-      dataRange: { start: '1950-01-01', end: 'present', delayDays: 6, resolution: 'Hourly', resolutionKm: '11 km', region: 'Global', updateFreq: 'Daily' },
+      dataRange: { start: '1950-01-01', end: 'present', delayDays: 6, resolution: 'Hourly', resolutionKm: '11 km', region: 'Global land', updateFreq: 'Daily' },
     },
     {
       id: 'ecmwf_ifs', label: 'ECMWF IFS',
@@ -448,9 +460,84 @@ export function resolveModelDateRange(dataRange) {
   };
 }
 
+// Short plain-language explanation of each model, shown in the sidebar info box.
+export const MODEL_DESCRIPTIONS = {
+  forecast: {
+    best_match:     'Open-Meteo picks the best available model for your location and blends a high-resolution regional model with a global one. A good default.',
+    icon_seamless:  'German Weather Service (DWD) ICON. "Seamless" means the high-resolution ICON-D2 (Central Europe) and ICON-EU are used where available, falling back to ICON Global elsewhere.',
+    icon_global:    'DWD ICON global model only, at 11 km everywhere — no regional refinement.',
+    gfs_seamless:   'NOAA GFS combined with the 3 km HRRR model over the continental US. Longest range (16 days).',
+    gfs_global:     'NOAA Global Forecast System alone, ~25 km grid, updated every 6 hours.',
+    ecmwf_ifs04:    'ECMWF Integrated Forecasting System (IFS) open-data output at 0.4°. ECMWF is widely regarded as the most skilful global medium-range model.',
+    ecmwf_aifs025:  'ECMWF AIFS — a machine-learning (AI) forecast model trained on ERA5 reanalysis, run operationally by ECMWF.',
+    gem_seamless:   'Environment Canada GEM, combining the global model with the 2.5 km HRDPS over Canada/northern US.',
+    access_global:  'Australian Bureau of Meteorology global model (ACCESS-G).',
+    arpege_world:   'Météo-France ARPEGE global model. Short range (4 days); strongest over Europe.',
+    jma_seamless:   'Japan Meteorological Agency: 5 km MSM over Japan blended with the global GSM. Best choice for Japan.',
+    ukmo_seamless:  'UK Met Office Unified Model: 2 km UKV over the British Isles plus the 10 km global model.',
+    kma_seamless:   'Korea Meteorological Administration: 1.5 km LDPS over Korea blended with the global GDPS.',
+    metno_seamless: 'MET Norway 1 km Nordic analysis/forecast, corrected with local observations. Scandinavia only.',
+    knmi_seamless:  'Dutch weather service HARMONIE-AROME at 2 km over the Netherlands and surroundings.',
+    dmi_seamless:   'Danish weather service HARMONIE-AROME at 2 km over Denmark and northern Europe.',
+  },
+  historical: {
+    era5_seamless:  'ERA5 and ERA5-Land combined. Land-surface variables (temperature, humidity, snow, soil) come from 11 km ERA5-Land where available; everything else (precipitation, wind, radiation, clouds, pressure) comes from 25 km ERA5. Every variable is available — the best default for long records.',
+    best_match:     'Open-Meteo default: ERA5-Seamless for the long record, with high-resolution ECMWF IFS (9 km) used from 2017 onwards. Most detailed, but the data source changes over time, so be careful with long-term trends.',
+    era5:           'ECMWF’s fifth-generation global reanalysis: observations assimilated into a consistent 25 km model, hourly from 1940. The consistent reference for climate studies.',
+    era5_land:      'A land-only rerun of the ERA5 land-surface model at finer 11 km resolution. More detail over complex terrain, but only land-surface variables are provided here, and there is no data over the ocean.',
+    ecmwf_ifs:      'Archive of the operational ECMWF IFS high-resolution (9 km) analysis from 2017. Sharper than ERA5 but model upgrades over the years make it less consistent.',
+    era5_ensemble:  'The 10-member ERA5 ensemble at 55 km / 3-hourly. Used to estimate the uncertainty of the reanalysis itself.',
+    cerra:          'Copernicus European Regional Reanalysis at 5 km. Europe only, 1985 – mid-2021.',
+  },
+  ensemble: {
+    icon_seamless:  'DWD ICON ensemble (40 members), using ICON-EU-EPS over Europe and ICON global EPS elsewhere.',
+    icon_global:    'DWD ICON global ensemble, 40 members at 26 km.',
+    icon_eu:        'DWD ICON-EU ensemble, 40 members at 13 km, Europe only.',
+    gfs025:         'NOAA GEFS ensemble at 0.25° (31 members), 10-day range.',
+    gfs05:          'NOAA GEFS ensemble at 0.5° (31 members), extended 35-day range.',
+    ecmwf_ifs025:   'ECMWF ENS, 51 members at 0.25°. The reference probabilistic global forecast.',
+    ecmwf_aifs025:  'ECMWF AI-based ensemble (AIFS ENS), 51 members.',
+    gem_global:     'Environment Canada global ensemble (GEPS), 21 members.',
+    bom_access_global_ensemble: 'Australian BOM ACCESS-GE global ensemble, 18 members.',
+    ukmo_global_deterministic_10km: 'UK Met Office MOGREPS-G global ensemble, 18 members.',
+  },
+  marine: {
+    best_match:           'Open-Meteo combines the best wave and ocean models for the chosen point.',
+    meteofrance_wave:     'Météo-France MFWAM global wave model (8 km), from the Copernicus Marine Service.',
+    meteofrance_currents: 'Météo-France SMOC: surface currents, sea-surface temperature and sea level. Provides the "Ocean" variables only — no waves.',
+    ecmwf_wam025:         'ECMWF WAM wave model coupled to IFS, 0.25°.',
+    ncep_gfswave025:      'NOAA GFS-Wave (WAVEWATCH III) at 0.25°, global.',
+    ncep_gfswave016:      'NOAA GFS-Wave high-resolution 0.16° grid, 52.5°N–15°S only.',
+    ewam:                 'DWD European wave model at 5 km.',
+    gwam:                 'DWD global wave model at 25 km.',
+    era5_ocean:           'ERA5 wave reanalysis (50 km), hourly since 1940 — use for historical wave climate.',
+  },
+  flood: {
+    seamless_v4:     'GloFAS v4 reanalysis joined to the latest forecast and seasonal outlook — one continuous series from 1984 up to 7 months ahead.',
+    forecast_v4:     'GloFAS v4 30-day ensemble discharge forecast (mean, median, spread).',
+    consolidated_v4: 'GloFAS v4 reanalysis only: hydrological model driven by ERA5 weather, 1984–2022.',
+    seasonal_v4:     'GloFAS v4 seasonal outlook, up to ~7 months ahead.',
+    seamless_v3:     'Previous GloFAS v3 (11 km) seamless series.',
+    forecast_v3:     'Previous GloFAS v3 30-day forecast.',
+    consolidated_v3: 'Previous GloFAS v3 reanalysis.',
+    seasonal_v3:     'Previous GloFAS v3 seasonal outlook.',
+  },
+  climate: {
+    CMCC_CM2_VHR4:  'CMCC (Italy) very-high-resolution coupled model, HighResMIP.',
+    FGOALS_f3_H:    'Chinese Academy of Sciences FGOALS-f3 high-resolution model.',
+    HiRAM_SIT_HR:   'Taiwan Academia Sinica HiRAM-SIT atmospheric model.',
+    MRI_AGCM3_2_S:  'Japan Meteorological Research Institute 20 km atmospheric model — finest resolution of the set.',
+    EC_Earth3P_HR:  'European EC-Earth consortium high-resolution model.',
+    MPI_ESM1_2_XR:  'Max Planck Institute (Germany) Earth system model, extra-high resolution.',
+    NICAM16_8S:     'Japan NICAM global cloud-system-resolving model.',
+  },
+};
+
 // Finds a model config by mode + model id.
 export function findModel(mode, modelId) {
-  return (MODELS[mode] || []).find((m) => m.id === modelId) || null;
+  const m = (MODELS[mode] || []).find((x) => x.id === modelId);
+  if (!m) return null;
+  return { ...m, description: MODEL_DESCRIPTIONS[mode]?.[modelId] };
 }
 
 // ─── Per-model variable availability ──────────────────────────────────────────
@@ -461,12 +548,19 @@ export function findModel(mode, modelId) {
 // offers. Verified against the live archive API (Berlin, 2024-06-01).
 export const MODEL_VARIABLE_SUPPORT = {
   historical: {
-    // ERA5-Land on Open-Meteo only serves 2 m temperature, dew point and the
-    // relative humidity derived from them. Use ERA5 Seamless for everything else.
+    // ERA5-Land on Open-Meteo only serves land-surface fields: 2 m temperature,
+    // dew point, humidity, snow depth and soil (also verified Tokyo, 2015–2026).
+    // Use ERA5 Seamless for everything else.
     era5_land: {
-      note: 'ERA5-Land only carries temperature and humidity. Pick ERA5 Seamless for precipitation, wind, cloud or radiation at the same 11 km resolution.',
-      hourly: ['temperature_2m', 'dew_point_2m', 'relative_humidity_2m'],
-      daily: ['temperature_2m_max', 'temperature_2m_min', 'temperature_2m_mean'],
+      note: 'ERA5-Land only carries temperature, humidity, snow and soil. Pick ERA5 Seamless for precipitation, wind, cloud or radiation at the same 11 km resolution.',
+      hourly: [
+        'temperature_2m', 'dew_point_2m', 'relative_humidity_2m', 'vapour_pressure_deficit',
+        'snow_depth', 'soil_temperature_0_to_7cm', 'soil_moisture_0_to_7cm',
+      ],
+      daily: [
+        'temperature_2m_max', 'temperature_2m_min', 'temperature_2m_mean',
+        'dew_point_2m_mean', 'relative_humidity_2m_mean', 'snow_depth_max', 'soil_moisture_0_to_7cm_mean',
+      ],
     },
   },
   marine: {
@@ -511,7 +605,7 @@ export const DEFAULT_VARIABLES = {
 export const TEMP_VARIABLE_IDS = new Set([
   'temperature_2m', 'apparent_temperature', 'dew_point_2m',
   'temperature_2m_max', 'temperature_2m_min', 'temperature_2m_mean',
-  'apparent_temperature_max', 'apparent_temperature_min',
+  'apparent_temperature_max', 'apparent_temperature_min', 'dew_point_2m_mean',
 ]);
 
 export const PRECIP_VARIABLE_IDS = new Set([
